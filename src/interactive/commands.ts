@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import * as readline from 'readline';
 import { execSync } from 'child_process';
 import { Config } from '../config/config';
 import { listSchemas, navigateToNode, getTree } from '../storage/storage';
@@ -286,7 +287,8 @@ export async function processCommand(
   input: string,
   currentPath: string,
   config: Config,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  rl?: readline.Interface
 ): Promise<CommandResult> {
   // Check for clipboard pipe
   const clipboardPipe = /\s*\|\s*(pbcopy|copy|clip)\s*$/i;
@@ -518,7 +520,7 @@ export async function processCommand(
   
   if (command === 'init') {
     const { initCommand } = await import('../commands/init');
-    await initCommand();
+    await initCommand(rl);
     return { output: 'Initialization complete. You can now use rlc.\n', reloadConfig: true };
   }
   

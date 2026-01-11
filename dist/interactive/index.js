@@ -136,7 +136,7 @@ async function startInteractive(initialConfig) {
         isProcessingCommand = true;
         const abortController = currentCommandAbortController;
         try {
-            const result = await (0, commands_1.processCommand)(trimmed, state.currentPath, config, abortController.signal);
+            const result = await (0, commands_1.processCommand)(trimmed, state.currentPath, config, abortController.signal, rl);
             if (abortController.signal.aborted) {
                 rl.prompt();
                 return;

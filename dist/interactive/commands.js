@@ -263,7 +263,7 @@ function copyRecursive(src, dest) {
         fs.copyFileSync(src, dest);
     }
 }
-async function processCommand(input, currentPath, config, signal) {
+async function processCommand(input, currentPath, config, signal, rl) {
     // Check for clipboard pipe
     const clipboardPipe = /\s*\|\s*(pbcopy|copy|clip)\s*$/i;
     const shouldCopy = clipboardPipe.test(input);
@@ -460,7 +460,7 @@ async function processCommand(input, currentPath, config, signal) {
     }
     if (command === 'init') {
         const { initCommand } = await Promise.resolve().then(() => __importStar(require('../commands/init')));
-        await initCommand();
+        await initCommand(rl);
         return { output: 'Initialization complete. You can now use rlc.\n', reloadConfig: true };
     }
     if (command === 'cd') {

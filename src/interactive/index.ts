@@ -124,7 +124,7 @@ export async function startInteractive(initialConfig: Config): Promise<void> {
     const abortController = currentCommandAbortController;
     
     try {
-      const result = await processCommand(trimmed, state.currentPath, config, abortController.signal);
+      const result = await processCommand(trimmed, state.currentPath, config, abortController.signal, rl);
       
       if (abortController.signal.aborted) {
         rl.prompt();

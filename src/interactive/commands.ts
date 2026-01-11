@@ -3,8 +3,71 @@ import * as fs from 'fs';
 import { execSync } from 'child_process';
 import { Config } from '../config/config';
 import { listSchemas, navigateToNode, getTree } from '../storage/storage';
-import { saveSchemaFile } from '../storage/nodeConfig';
+import { saveSchemaFile, writeNodeConfig } from '../storage/nodeConfig';
 import { generateSchemaWithAI } from '../ai/claude';
+
+// Parse tree ASCII art and create folder structure
+function createFoldersFromTree(rootPath: string, treeContent: string): void {
+  // Create root folder
+  if (!fs.existsSync(rootPath)) {
+    fs.mkdirSync(rootPath, { recursive: true });
+  }
+  
+  // Parse tree lines
+  const lines = treeContent.split('\n');
+  const stack: { path: string; indent: number }[] = [{ path: rootPath, indent: -1 }];
+  
+  for (const line of lines) {
+    // Skip empty lines
+    if (!line.trim()) continue;
+    
+    // Extract node name from tree line
+    // Patterns: "├── Name", "└── Name", "│   ├── Name", etc.
+    const match = line.match(/^([\s│]*)[├└]──\s*(.+)$/);
+    if (!match) continue;
+    
+    const prefix = match[1];
+    let nodeName = match[2].trim();
+    
+    // Calculate indent level (each │ or space block = 1 level)
+    const indent = Math.floor(prefix.replace(/│/g, ' ').length / 4);
+    
+    // Clean node name - remove extra info in parentheses, brackets
+    nodeName = nodeName.replace(/\s*\([^)]*\)\s*/g, '').trim();
+    nodeName = nodeName.replace(/\s*\[[^\]]*\]\s*/g, '').trim();
+    
+    // Create safe folder name
+    const safeName = nodeName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    
+    if (!safeName) continue;
+    
+    // Pop stack until we find parent
+    while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+      stack.pop();
+    }
+    
+    const parentPath = stack[stack.length - 1].path;
+    const folderPath = path.join(parentPath, safeName);
+    
+    // Create folder
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+    
+    // Create node config
+    writeNodeConfig(folderPath, {
+      name: nodeName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    
+    // Push to stack
+    stack.push({ path: folderPath, indent });
+  }
+}
 
 export interface CommandResult {
   output?: string;
@@ -16,6 +79,7 @@ export interface CommandResult {
 export interface PendingSchema {
   title: string;
   content: string;
+  format: 'block' | 'tree';
   tree?: any[];
 }
 
@@ -533,25 +597,40 @@ www.rlc.rocks`
     });
   }
   
-  // Save command - save pending schema to .rlc.schema file
+  // Save command - save pending schema/todo
   if (command === 'save') {
     if (!sessionState.pending) {
       return wrapResult({ output: 'Nothing to save. Create a schema first.' });
     }
     
-    const schemaPath = saveSchemaFile(
-      currentPath,
-      sessionState.pending.title,
-      sessionState.pending.content
-    );
-    const relativePath = path.relative(config.storagePath, schemaPath);
-    const filename = path.basename(schemaPath);
+    const pending = sessionState.pending;
+    const safeName = pending.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     
-    // Clear session
-    sessionState.pending = null;
-    sessionState.history = [];
-    
-    return wrapResult({ output: `Saved: ${filename}` });
+    if (pending.format === 'tree') {
+      // Create folder structure from tree ASCII art
+      const rootPath = path.join(currentPath, safeName);
+      createFoldersFromTree(rootPath, pending.content);
+      
+      // Clear session
+      sessionState.pending = null;
+      sessionState.history = [];
+      
+      return wrapResult({ output: `Created todo folder: ${safeName}/` });
+    } else {
+      // Save as .rlc.schema file
+      const schemaPath = saveSchemaFile(
+        currentPath,
+        pending.title,
+        pending.content
+      );
+      const filename = path.basename(schemaPath);
+      
+      // Clear session
+      sessionState.pending = null;
+      sessionState.history = [];
+      
+      return wrapResult({ output: `Saved: ${filename}` });
+    }
   }
   
   // Cancel command - discard pending schema
@@ -607,16 +686,21 @@ www.rlc.rocks`
     sessionState.pending = {
       title: schema.title,
       content: schema.content,
+      format: schema.format,
       tree: schema.tree
     };
     
     // Add assistant response to history
     sessionState.history.push({ role: 'assistant', content: schema.content });
     
-    const filename = schema.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const safeName = schema.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    
+    const saveHint = schema.format === 'tree'
+      ? `[Type "save" to create folder ${safeName}/, or refine with more instructions]`
+      : `[Type "save" to save as ${safeName}.rlc.schema, or refine with more instructions]`;
     
     return wrapResult({ 
-      output: `\n${schema.content}\n\n[Type "save" to save as ${filename}.rlc.schema, or refine with more instructions]` 
+      output: `\n${schema.content}\n\n${saveHint}` 
     });
   }
   

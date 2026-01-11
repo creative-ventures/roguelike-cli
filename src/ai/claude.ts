@@ -4,6 +4,7 @@ import { Config } from '../config/config';
 export interface GeneratedSchema {
   title: string;
   content: string;
+  format: 'block' | 'tree';
   tree?: any[];
 }
 
@@ -130,6 +131,7 @@ export async function generateSchemaWithAI(
     return {
       title: parsed.title || 'schema',
       content: schemaContent,
+      format: parsed.format || 'block',
     };
   } catch (error: any) {
     console.error('AI Error:', error.message);

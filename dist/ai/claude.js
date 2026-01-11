@@ -106,6 +106,7 @@ async function generateSchemaWithAI(input, config, signal, history) {
         return {
             title: parsed.title || 'schema',
             content: schemaContent,
+            format: parsed.format || 'block',
         };
     }
     catch (error) {

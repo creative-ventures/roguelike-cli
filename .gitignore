@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# build output is committed for npm publish
+# /dist/
+
+# misc
+.DS_Store
+*.log
+
+# local env files
+.env*.local
+

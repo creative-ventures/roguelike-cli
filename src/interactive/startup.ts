@@ -14,7 +14,7 @@ const ASCII_ART = [
   '  \'  \'',
   '',
   '╔═════════════════════════╗',
-  '║    Roguelike CLI v1.0   ║',
+  '║      Roguelike CLI      ║',
   '╚═════════════════════════╝',
   '',
   '  Commands: ls, cd, mkdir, open, cp, mv, rm, tree, pwd, clean',

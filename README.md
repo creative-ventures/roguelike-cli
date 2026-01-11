@@ -13,201 +13,295 @@
   '  '
 
 ╔═════════════════════════╗
-║    Roguelike CLI v1.1   ║
+║      Roguelike CLI      ║
 ╚═════════════════════════╝
 ```
 
-AI-powered interactive terminal for creating schemas, architectures and todo lists.
+## What is this?
+
+**A new format for notes, schemas, and todo lists — where every task is a folder.**
+
+Instead of flat text files, your tasks become a **file system tree**. Nested tasks = nested folders. You can:
+
+- **Navigate** your todos like directories (`cd`, `ls`, `tree`)
+- **Attach files** directly to tasks (just put them in the folder)
+- **Track dependencies** and blockers between tasks
+- **Generate beautiful visualizations** — trees, block diagrams, and even **dungeon maps**
+- Let **AI help** you structure complex projects
+
+## Why folders?
+
+```
+project/
+├── phase-1-research/
+│   ├── market-analysis/
+│   │   └── competitors.xlsx      ← attach files directly!
+│   └── user-interviews/
+├── phase-2-development/
+│   ├── backend-api/
+│   ├── frontend-ui/
+│   └── database-schema/
+└── phase-3-launch/
+    ├── marketing/
+    └── deployment/
+```
+
+Your file manager becomes your task manager. Git tracks your progress. AI generates the structure.
 
 ## Install
 
 ```bash
 npm i -g roguelike-cli
-```
-
-## Usage
-
-```bash
 rlc
 ```
 
-First run will start the setup wizard to configure:
-- Storage path for your notes
-- AI provider (Claude, GPT, Gemini, Grok)
-- API key
+## Workflow
+
+```
+> todo launch my startup
+
+├── Research
+│   ├── Market analysis
+│   ├── Competitor research
+│   └── User interviews
+├── Development
+│   ├── MVP features
+│   ├── Backend API
+│   └── Frontend UI
+├── Launch
+│   ├── Marketing campaign
+│   └── Press release
+└── Growth
+    ├── Metrics tracking
+    └── User feedback
+
+[Type "save" to create folder launch-my-startup/]
+> save
+Created todo folder: launch-my-startup/
+
+> cd launch-my-startup
+> tree
+├── research/
+│   ├── market-analysis/
+│   ├── competitor-research/
+│   └── user-interviews/
+├── development/
+│   ├── mvp-features/
+│   ├── backend-api/
+│   └── frontend-ui/
+├── launch/
+│   ├── marketing-campaign/
+│   └── press-release/
+└── growth/
+    ├── metrics-tracking/
+    └── user-feedback/
+```
+
+Now you can `cd development/backend-api` and drop your actual code files there!
+
+## Visualizations
+
+### Tree View (default)
+
+```
+├── Phase 1: Setup
+│   ├── Create repository
+│   ├── Setup CI/CD
+│   └── Configure environment
+├── Phase 2: Development
+│   ├── Backend API
+│   └── Frontend UI
+└── Phase 3: Deploy
+```
+
+### Block Diagram (for architecture)
+
+```
+> schema kubernetes cluster
+
+┌─────────────────────────────────────────────────────────────┐
+│                  Kubernetes Cluster                         │
+│                                                             │
+│  ┌──────────────┐      ┌──────────────┐                    │
+│  │   postgres   │      │    redis     │                    │
+│  │              │      │              │                    │
+│  │ primary-pod  │      │ cache-pod-1  │                    │
+│  │ replica-pod  │      │ cache-pod-2  │                    │
+│  └──────┬───────┘      └──────┬───────┘                    │
+│         └──────────┬───────────┘                            │
+│                    ▼                                        │
+│            ┌───────────────┐                                │
+│            │ worker-nodes  │                                │
+│            └───────────────┘                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Dungeon Map View (roguelike style) 🎮
+
+Visualize your project as a dungeon map! Each room is a task, corridors show dependencies.
+
+```
+> map
+
+  ████████████████████████████████████████
+  █                    █                 █
+  █   [Research]       █   [Development] █
+  █   ♦ Market         █   ♦ Backend     █
+  █   ♦ Users    ──────+───♦ Frontend    █
+  █                    █   ♦ Database    █
+  █████████+███████████████████+██████████
+           │                   │
+  █████████+███████████████████+██████████
+  █                    █                 █
+  █   [Launch]         █   [Growth]      █
+  █   ♦ Marketing      █   ♦ Metrics     █
+  █   ♦ Press    ──────+───♦ Feedback    █
+  █   ♣ BOSS: Ship it! █                 █
+  █                    █                 █
+  ████████████████████████████████████████
+
+Legend: ♦ Task  ♣ Milestone  + Door/Dependency  █ Wall
+```
+
+*Coming soon: Interactive dungeon exploration, XP for completed tasks, achievements!*
+
+## Gamification (Roadmap)
+
+- 🎯 **XP System** — Earn experience for completing tasks
+- 🏆 **Achievements** — "First Blood", "100 Tasks", "Deep Nesting"
+- 🗡️ **Boss Tasks** — Major milestones as boss fights
+- 🗺️ **Dungeon Maps** — Explore your project as a roguelike dungeon
+- 📊 **Stats** — Track velocity, streaks, completion rates
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `ls` | List all schemas, todos, and notes |
-| `tree` | Show directory tree structure |
-| `tree -A` | Show tree with files |
-| `tree --depth=N` | Limit tree depth |
-| `cd <node>` | Navigate into a node |
-| `cd ..` | Go back to parent |
-| `..` | Same as cd .. |
-| `pwd` | Show current path |
-| `open` | Open current folder in Finder |
-| `open <folder>` | Open specific folder in Finder |
-| `mkdir <name>` | Create new folder |
-| `cp <src> <dest>` | Copy file or folder |
-| `mv <src> <dest>` | Move/rename file or folder |
-| `rm <name>` | Delete file |
-| `rm -rf <name>` | Delete folder recursively |
-| `config` | Show configuration |
-| `config:apiKey=<key>` | Set API key |
-| `init` | Run setup wizard |
-| `help` | Show examples |
-| `clean` | Show items to delete |
-| `clean --yes` | Delete all items in current folder |
-| `exit` / `quit` | Exit the program |
+| `ls` | List tasks and files |
+| `tree` | Show task tree |
+| `tree -A` | Include files |
+| `cd <task>` | Enter task |
+| `..` | Go back |
+| `mkdir <name>` | Create task |
+| `open` | Open in Finder |
+| `cp`, `mv`, `rm` | File operations |
+| `config` | Settings |
+| `help` | Examples |
 
-## Workflow
+## AI Integration
 
-1. Type description (e.g., `todo: deploy app`)
-2. AI generates schema preview
-3. Refine with more instructions if needed
-4. Type `save` to save or `cancel` to discard
-
-**Todo** creates folder structure, **Schema** saves as `.rlc.schema` file.
-
-## Clipboard
-
-Add `| pbcopy` (macOS), `| copy` or `| clip` (Windows) to any command:
-
-```
-> ls | pbcopy
-> tree | pbcopy
-> config | copy
-```
-
-## Examples
-
-### Todo List
-
-```
-> todo opening company in delaware
-
-├── register business name
-├── file incorporation papers
-├── get EIN number
-└── Branch: legal
-    └── open business bank account
-
-[Type "save" to create folder opening-company-in-delaware/]
-```
-
-### Cloud Infrastructure Schema
-
-```
-> yandex cloud production infrastructure
-
-┌─────────────────────────────────────────────────────────────┐
-│                  Yandex Cloud                               │
-│                                                             │
-│  ┌──────────────────┐      ┌──────────────────┐           │
-│  │ back-fastapi     │      │ admin-next       │           │
-│  │ (VM)             │      │ (VM)             │           │
-│  └────────┬─────────┘      └──────────────────┘           │
-│           │                                                 │
-│           ├──────────────────┬─────────────────┐           │
-│           │                  │                 │           │
-│  ┌────────▼────────┐  ┌─────▼──────┐   ┌──────▼────────┐  │
-│  │   PostgreSQL    │  │   Redis    │   │  Cloudflare   │  │
-│  │  (Existing DB)  │  │  Cluster   │   │  R2 Storage   │  │
-│  └─────────────────┘  └────────────┘   └───────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Web Application Architecture
-
-```
-> architecture production redis web application
-
-├── load-balancer
-├── web-servers
-│   ├── app-server-1
-│   ├── app-server-2
-│   └── app-server-3
-├── redis
-│   ├── cache-cluster
-│   └── session-store
-└── database
-    ├── postgres-primary
-    └── postgres-replica
-```
-
-### Kubernetes Cluster
-
-```
-> kubernetes cluster with postgres and redis
-
-┌─────────────────────────────────────────────────────────────┐
-│         Kubernetes cluster with clusters postgres          │
-│                                                             │
-│  ┌──────────────┐      ┌──────────────┐                  │
-│  │   postgres   │      │    redis     │                  │
-│  │              │      │              │                  │
-│  │ primary-pod  │      │ cache-pod-1  │                  │
-│  │ replica-pod-1│      │ cache-pod-2  │                  │
-│  │ replica-pod-2│      │              │                  │
-│  └──────┬───────┘      └──────┬───────┘                  │
-│         │                      │                           │
-│         └──────────┬───────────┘                           │
-│                    │                                         │
-│            ┌───────▼────────┐                              │
-│            │ worker-zones   │                              │
-│            │   zone-1       │                              │
-│            │   zone-2       │                              │
-│            └────────────────┘                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Recipe Steps
+Just describe what you need:
 
 ```
 > todo bake cookies
 
 ├── Prep
 │   ├── Gather ingredients
-│   └── Preheat oven (375°F)
+│   └── Preheat oven
 ├── Mix
 │   ├── Cream butter + sugar
-│   ├── Add eggs + vanilla
-│   └── Mix in flour
-├── Bake
-│   ├── Shape cookies
-│   └── Bake 8-10 min
+│   └── Add flour
+├── Bake (8-10 min)
 └── Cool & store
+
+> add deadline tomorrow for Bake
+> add blocker "buy flour" for Mix
+> shorter
+> more detailed
+> save
 ```
 
-### Project Planning
+AI understands context and refines until you're happy.
+
+## Examples
+
+### Software Project
 
 ```
-> todo launch startup
+> todo build saas app
 
-├── Phase 1: Ideation
-│   ├── Market research
-│   ├── Define MVP
-│   └── Create business plan
-├── Phase 2: Development
-│   ├── Build prototype
-│   ├── User testing
-│   └── Iterate
-├── Phase 3: Launch
-│   ├── Marketing campaign
-│   ├── Press release
-│   └── Launch day
-└── Phase 4: Growth
-    ├── Gather feedback
-    ├── Scale infrastructure
-    └── Hire team
+├── Planning
+│   ├── Define MVP scope
+│   ├── Create wireframes
+│   └── Tech stack decision
+├── Backend
+│   ├── Database schema
+│   ├── API endpoints
+│   ├── Authentication
+│   └── Payment integration
+├── Frontend
+│   ├── Components library
+│   ├── Pages
+│   └── State management
+├── DevOps
+│   ├── CI/CD pipeline
+│   ├── Staging environment
+│   └── Production deployment
+└── Launch
+    ├── Beta testing
+    ├── Marketing site
+    └── Product Hunt launch
+```
+
+### Life Goals
+
+```
+> todo learn japanese
+
+├── Basics (Month 1-2)
+│   ├── Hiragana
+│   ├── Katakana
+│   └── Basic grammar
+├── Foundation (Month 3-6)
+│   ├── Kanji (500)
+│   ├── Vocabulary (2000 words)
+│   └── Genki textbook
+├── Intermediate (Month 6-12)
+│   ├── JLPT N4 prep
+│   ├── Reading practice
+│   └── Conversation partner
+└── Advanced
+    ├── JLPT N3
+    ├── Watch anime without subs
+    └── Visit Japan
+```
+
+### Infrastructure
+
+```
+> schema cloud infrastructure
+
+┌─────────────────────────────────────────────────────────────┐
+│                     Production                              │
+│                                                             │
+│  ┌──────────────────┐      ┌──────────────────┐           │
+│  │ Load Balancer    │      │ CDN              │           │
+│  └────────┬─────────┘      └──────────────────┘           │
+│           │                                                 │
+│  ┌────────▼────────┐  ┌────────────┐   ┌────────────────┐ │
+│  │   App Servers   │  │   Redis    │   │   PostgreSQL   │ │
+│  │   (3 replicas)  │──│   Cache    │   │   (Primary +   │ │
+│  └─────────────────┘  └────────────┘   │    Replica)    │ │
+│                                         └────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Clipboard
+
+```
+> tree | pbcopy     # macOS
+> tree | clip       # Windows
 ```
 
 ## Website
 
 **https://www.rlc.rocks**
+
+## Inspired by
+
+- [roguelike](https://www.npmjs.com/package/roguelike) — 2D dungeon map generator
+- Unix philosophy — everything is a file
+- GTD methodology — capture, organize, do
 
 ## License
 

@@ -69,6 +69,130 @@ function createFoldersFromTree(rootPath: string, treeContent: string): void {
   }
 }
 
+// Generate dungeon map visualization from folder structure
+function generateDungeonMap(dirPath: string): string {
+  if (!fs.existsSync(dirPath)) {
+    return 'Directory does not exist.';
+  }
+  
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const folders = entries.filter(e => e.isDirectory() && !e.name.startsWith('.'));
+  
+  if (folders.length === 0) {
+    return 'No rooms to display. Create some tasks first.';
+  }
+  
+  const lines: string[] = [];
+  const roomWidth = 20;
+  const roomsPerRow = 2;
+  const wall = '█';
+  const door = '+';
+  const task = '*';
+  const milestone = '@';
+  
+  // Group folders into rows of 2
+  const rows: typeof folders[] = [];
+  for (let i = 0; i < folders.length; i += roomsPerRow) {
+    rows.push(folders.slice(i, i + roomsPerRow));
+  }
+  
+  // Top border
+  lines.push('  ' + wall.repeat(roomWidth * roomsPerRow + 3));
+  
+  rows.forEach((row, rowIndex) => {
+    // Room content
+    for (let line = 0; line < 6; line++) {
+      let rowStr = '  ' + wall;
+      
+      row.forEach((folder, colIndex) => {
+        const name = folder.name.replace(/-/g, ' ');
+        const displayName = name.length > roomWidth - 4 
+          ? name.substring(0, roomWidth - 7) + '...' 
+          : name;
+        
+        // Get sub-items
+        const subPath = path.join(dirPath, folder.name);
+        const subEntries = fs.existsSync(subPath) 
+          ? fs.readdirSync(subPath, { withFileTypes: true })
+              .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+          : [];
+        
+        if (line === 0) {
+          // Empty line
+          rowStr += ' '.repeat(roomWidth - 1) + wall;
+        } else if (line === 1) {
+          // Room name
+          const title = `[${displayName}]`;
+          const padding = roomWidth - title.length - 1;
+          rowStr += ' ' + title + ' '.repeat(Math.max(0, padding - 1)) + wall;
+        } else if (line >= 2 && line <= 4) {
+          // Sub-items
+          const itemIndex = line - 2;
+          if (itemIndex < subEntries.length) {
+            const subName = subEntries[itemIndex].name.replace(/-/g, ' ');
+            const shortName = subName.length > roomWidth - 6 
+              ? subName.substring(0, roomWidth - 9) + '...' 
+              : subName;
+            const marker = subName.toLowerCase().includes('boss') || 
+                          subName.toLowerCase().includes('launch') ||
+                          subName.toLowerCase().includes('deploy')
+              ? milestone : task;
+            const itemStr = `${marker} ${shortName}`;
+            const itemPadding = roomWidth - itemStr.length - 1;
+            rowStr += ' ' + itemStr + ' '.repeat(Math.max(0, itemPadding - 1)) + wall;
+          } else {
+            rowStr += ' '.repeat(roomWidth - 1) + wall;
+          }
+        } else {
+          // Empty line
+          rowStr += ' '.repeat(roomWidth - 1) + wall;
+        }
+        
+        // Add door between rooms
+        if (colIndex < row.length - 1 && line === 3) {
+          rowStr = rowStr.slice(0, -1) + door + door + door;
+        } else if (colIndex < row.length - 1) {
+          rowStr = rowStr.slice(0, -1) + wall;
+        }
+      });
+      
+      // Fill empty space if odd number of rooms
+      if (row.length < roomsPerRow) {
+        rowStr += ' '.repeat(roomWidth) + wall;
+      }
+      
+      lines.push(rowStr);
+    }
+    
+    // Bottom border with doors to next row
+    if (rowIndex < rows.length - 1) {
+      let borderStr = '  ' + wall.repeat(Math.floor(roomWidth / 2)) + door;
+      borderStr += wall.repeat(roomWidth - 1) + door;
+      borderStr += wall.repeat(Math.floor(roomWidth / 2) + 1);
+      lines.push(borderStr);
+      
+      // Corridor
+      let corridorStr = '  ' + ' '.repeat(Math.floor(roomWidth / 2)) + '│';
+      corridorStr += ' '.repeat(roomWidth - 1) + '│';
+      lines.push(corridorStr);
+      
+      borderStr = '  ' + wall.repeat(Math.floor(roomWidth / 2)) + door;
+      borderStr += wall.repeat(roomWidth - 1) + door;
+      borderStr += wall.repeat(Math.floor(roomWidth / 2) + 1);
+      lines.push(borderStr);
+    }
+  });
+  
+  // Bottom border
+  lines.push('  ' + wall.repeat(roomWidth * roomsPerRow + 3));
+  
+  // Legend
+  lines.push('');
+  lines.push(`Legend: ${task} Task  ${milestone} Milestone  ${door} Door  ${wall} Wall`);
+  
+  return lines.join('\n');
+}
+
 export interface CommandResult {
   output?: string;
   newPath?: string;
@@ -180,6 +304,18 @@ export async function processCommand(
     }
     return result;
   };
+  
+  // Version command
+  if (command === 'v' || command === 'version') {
+    const pkg = require('../../package.json');
+    return wrapResult({ output: `Roguelike CLI v${pkg.version}` });
+  }
+  
+  // Map command - dungeon visualization
+  if (command === 'map') {
+    const dungeonMap = generateDungeonMap(currentPath);
+    return wrapResult({ output: dungeonMap });
+  }
   
   if (command === 'ls') {
     if (!fs.existsSync(currentPath)) {
@@ -491,6 +627,7 @@ Storage:      ${config.storagePath}
   tree                  - Show directory tree structure
   tree -A               - Show tree with files
   tree --depth=N        - Limit tree depth (e.g., --depth=2)
+  map                   - Dungeon map visualization
   cd <node>             - Navigate into a node
   cd ..                 - Go back to parent
   pwd                   - Show current path
@@ -503,6 +640,7 @@ Storage:      ${config.storagePath}
   rm -rf <name>         - Delete folder recursively
   config                - Show configuration
   config:apiKey=<key>   - Set API key
+  v, version            - Show version
   <description>         - Create schema/todo (AI generates preview)
   save                  - Save pending schema to disk
   cancel                - Discard pending schema

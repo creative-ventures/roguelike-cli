@@ -26,7 +26,7 @@ Instead of flat text files, your tasks become a **file system tree**. Nested tas
 - **Navigate** your todos like directories (`cd`, `ls`, `tree`)
 - **Attach files** directly to tasks (just put them in the folder)
 - **Track dependencies** and blockers between tasks
-- **Generate beautiful visualizations** — trees, block diagrams, and even **dungeon maps**
+- **Generate beautiful visualizations** — trees, block diagrams, and dungeon maps
 - Let **AI help** you structure complex projects
 
 ## Why folders?
@@ -35,7 +35,7 @@ Instead of flat text files, your tasks become a **file system tree**. Nested tas
 project/
 ├── phase-1-research/
 │   ├── market-analysis/
-│   │   └── competitors.xlsx      ← attach files directly!
+│   │   └── competitors.xlsx      <- attach files directly
 │   └── user-interviews/
 ├── phase-2-development/
 │   ├── backend-api/
@@ -136,9 +136,9 @@ Now you can `cd development/backend-api` and drop your actual code files there!
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Dungeon Map View (roguelike style) 🎮
+### Dungeon Map View
 
-Visualize your project as a dungeon map! Each room is a task, corridors show dependencies.
+Visualize your project as a dungeon map. Each room is a task, corridors show dependencies.
 
 ```
 > map
@@ -146,32 +146,30 @@ Visualize your project as a dungeon map! Each room is a task, corridors show dep
   ████████████████████████████████████████
   █                    █                 █
   █   [Research]       █   [Development] █
-  █   ♦ Market         █   ♦ Backend     █
-  █   ♦ Users    ──────+───♦ Frontend    █
-  █                    █   ♦ Database    █
+  █   * Market         █   * Backend     █
+  █   * Users    ──────+───* Frontend    █
+  █                    █   * Database    █
   █████████+███████████████████+██████████
            │                   │
   █████████+███████████████████+██████████
   █                    █                 █
   █   [Launch]         █   [Growth]      █
-  █   ♦ Marketing      █   ♦ Metrics     █
-  █   ♦ Press    ──────+───♦ Feedback    █
-  █   ♣ BOSS: Ship it! █                 █
+  █   * Marketing      █   * Metrics     █
+  █   * Press    ──────+───* Feedback    █
+  █   @ BOSS: Ship it! █                 █
   █                    █                 █
   ████████████████████████████████████████
 
-Legend: ♦ Task  ♣ Milestone  + Door/Dependency  █ Wall
+Legend: * Task  @ Milestone  + Door  █ Wall
 ```
-
-*Coming soon: Interactive dungeon exploration, XP for completed tasks, achievements!*
 
 ## Gamification (Roadmap)
 
-- 🎯 **XP System** — Earn experience for completing tasks
-- 🏆 **Achievements** — "First Blood", "100 Tasks", "Deep Nesting"
-- 🗡️ **Boss Tasks** — Major milestones as boss fights
-- 🗺️ **Dungeon Maps** — Explore your project as a roguelike dungeon
-- 📊 **Stats** — Track velocity, streaks, completion rates
+- **XP System** — Earn experience for completing tasks
+- **Achievements** — "First Blood", "100 Tasks", "Deep Nesting"
+- **Boss Tasks** — Major milestones as boss fights
+- **Dungeon Maps** — Explore your project as a roguelike dungeon
+- **Stats** — Track velocity, streaks, completion rates
 
 ## Commands
 
@@ -180,6 +178,7 @@ Legend: ♦ Task  ♣ Milestone  + Door/Dependency  █ Wall
 | `ls` | List tasks and files |
 | `tree` | Show task tree |
 | `tree -A` | Include files |
+| `map` | Dungeon map view |
 | `cd <task>` | Enter task |
 | `..` | Go back |
 | `mkdir <name>` | Create task |
@@ -187,6 +186,7 @@ Legend: ♦ Task  ♣ Milestone  + Door/Dependency  █ Wall
 | `cp`, `mv`, `rm` | File operations |
 | `config` | Settings |
 | `help` | Examples |
+| `v`, `version` | Show version |
 
 ## AI Integration
 
@@ -296,12 +296,6 @@ AI understands context and refines until you're happy.
 ## Website
 
 **https://www.rlc.rocks**
-
-## Inspired by
-
-- [roguelike](https://www.npmjs.com/package/roguelike) — 2D dungeon map generator
-- Unix philosophy — everything is a file
-- GTD methodology — capture, organize, do
 
 ## License
 

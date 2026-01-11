@@ -330,16 +330,26 @@ async function processCommand(input, currentPath, config, signal, rl) {
         }
         return wrapResult({ output: treeLines.join('\n') });
     }
-    // Handle navigation without 'cd' command (.., ...)
-    if (command === '..' || command === '...') {
-        let levels = command === '...' ? 2 : 1;
+    // Handle navigation without 'cd' command (.., ..., ...., etc)
+    if (/^\.{2,}$/.test(command)) {
+        // Count dots: .. = 1 level, ... = 2 levels, .... = 3 levels, etc
+        const levels = command.length - 1;
         let targetPath = currentPath;
+        // Already at root?
+        if (targetPath === config.storagePath) {
+            return { output: 'Already at root.' };
+        }
         for (let i = 0; i < levels; i++) {
             const parentPath = path.dirname(targetPath);
-            if (parentPath === config.storagePath || parentPath.length < config.storagePath.length) {
-                return { output: 'Already at root.' };
+            // Stop at storage root
+            if (targetPath === config.storagePath || parentPath.length < config.storagePath.length) {
+                break;
             }
             targetPath = parentPath;
+            // If we reached root, stop
+            if (targetPath === config.storagePath) {
+                break;
+            }
         }
         return { newPath: targetPath, output: '' };
     }
@@ -468,18 +478,25 @@ async function processCommand(input, currentPath, config, signal, rl) {
             return { output: 'Usage: cd <node> or cd .. or cd <path>' };
         }
         const target = parts.slice(1).join(' ');
-        if (target === '..') {
-            const parentPath = path.dirname(currentPath);
-            if (parentPath === config.storagePath || parentPath.length < config.storagePath.length) {
+        // Handle cd .., cd ..., cd ...., etc
+        if (/^\.{2,}$/.test(target)) {
+            const levels = target.length - 1;
+            let targetPath = currentPath;
+            // Already at root?
+            if (targetPath === config.storagePath) {
                 return { output: 'Already at root.' };
             }
-            return { newPath: parentPath, output: '' };
-        }
-        if (target === '...') {
-            let targetPath = path.dirname(currentPath);
-            targetPath = path.dirname(targetPath);
-            if (targetPath.length < config.storagePath.length) {
-                return { output: 'Already at root.' };
+            for (let i = 0; i < levels; i++) {
+                const parentPath = path.dirname(targetPath);
+                // Stop at storage root
+                if (targetPath === config.storagePath || parentPath.length < config.storagePath.length) {
+                    break;
+                }
+                targetPath = parentPath;
+                // If we reached root, stop
+                if (targetPath === config.storagePath) {
+                    break;
+                }
             }
             return { newPath: targetPath, output: '' };
         }
@@ -488,13 +505,22 @@ async function processCommand(input, currentPath, config, signal, rl) {
             let targetPath = currentPath;
             const pathParts = target.split('/');
             for (const part of pathParts) {
-                if (part === '..') {
-                    targetPath = path.dirname(targetPath);
+                if (/^\.{2,}$/.test(part)) {
+                    // Handle .., ..., ...., etc in path
+                    const levels = part.length - 1;
+                    for (let i = 0; i < levels; i++) {
+                        if (targetPath === config.storagePath)
+                            break;
+                        const parentPath = path.dirname(targetPath);
+                        if (parentPath.length < config.storagePath.length)
+                            break;
+                        targetPath = parentPath;
+                    }
                 }
                 else if (part === '.') {
                     continue;
                 }
-                else {
+                else if (part) {
                     const newPath = (0, storage_1.navigateToNode)(targetPath, part);
                     if (!newPath) {
                         return { output: `Path "${target}" not found.` };

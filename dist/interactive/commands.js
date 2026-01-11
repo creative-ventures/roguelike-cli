@@ -428,6 +428,13 @@ async function processCommand(input, currentPath, config, signal, rl) {
         // Update profile with XP and achievements
         const depth = getDepth(currentPath, config.storagePath);
         const taskResult = (0, profile_1.completeTask)(result.xpGained, nodeConfig.isBoss || false, depth, nodeConfig.createdAt);
+        // Save to undo history
+        (0, profile_1.addToUndoHistory)({
+            path: currentPath,
+            xpLost: result.xpGained,
+            wasBoss: nodeConfig.isBoss || false,
+            timestamp: new Date().toISOString(),
+        });
         let output = `\n=== TASK COMPLETED ===\n`;
         output += `\nTasks completed: ${result.tasksCompleted}`;
         if (result.bossesDefeated > 0) {
@@ -444,6 +451,30 @@ async function processCommand(input, currentPath, config, signal, rl) {
                 output += `\n[x] ${ach.name}: ${ach.description}`;
             }
         }
+        output += '\n';
+        output += '[Type "undo" to revert]';
+        return wrapResult({ output });
+    }
+    // Undo command
+    if (command === 'undo') {
+        const lastUndo = (0, profile_1.getLastUndo)();
+        if (!lastUndo) {
+            return wrapResult({ output: 'Nothing to undo.' });
+        }
+        // Revert the task status
+        const nodeConfig = (0, nodeConfig_1.readNodeConfig)(lastUndo.path);
+        if (nodeConfig) {
+            (0, nodeConfig_1.writeNodeConfig)(lastUndo.path, {
+                ...nodeConfig,
+                status: 'open',
+                completedAt: undefined,
+            });
+        }
+        // Revert profile stats
+        const result = (0, profile_1.performUndo)();
+        let output = `\n=== UNDO ===\n`;
+        output += `\nReverted: ${path.basename(lastUndo.path)}`;
+        output += `\n${result.message}`;
         output += '\n';
         return wrapResult({ output });
     }
@@ -482,19 +513,48 @@ async function processCommand(input, currentPath, config, signal, rl) {
         });
         return wrapResult({ output: newIsBoss ? 'Marked as BOSS task (3x XP)' : 'Removed BOSS status' });
     }
-    // Block command
+    // Block command - block <node> or block "reason"
     if (command === 'block') {
         const nodeConfig = (0, nodeConfig_1.readNodeConfig)(currentPath);
         if (!nodeConfig) {
             return wrapResult({ output: 'No task at current location.' });
         }
-        const reason = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
+        const arg = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
+        let blockedBy = nodeConfig.blockedBy || [];
+        let blockMessage = 'Task marked as blocked';
+        if (arg) {
+            // Check if it's a path to another node
+            const potentialPath = path.join(currentPath, '..', arg);
+            const absolutePath = path.isAbsolute(arg) ? arg : potentialPath;
+            if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()) {
+                // It's a node path
+                const blockerConfig = (0, nodeConfig_1.readNodeConfig)(absolutePath);
+                const blockerName = blockerConfig?.name || path.basename(absolutePath);
+                blockedBy = [...blockedBy, absolutePath];
+                blockMessage = `Blocked by: ${blockerName}`;
+            }
+            else {
+                // Check sibling folder
+                const siblingPath = path.join(path.dirname(currentPath), arg);
+                if (fs.existsSync(siblingPath) && fs.statSync(siblingPath).isDirectory()) {
+                    const blockerConfig = (0, nodeConfig_1.readNodeConfig)(siblingPath);
+                    const blockerName = blockerConfig?.name || arg;
+                    blockedBy = [...blockedBy, siblingPath];
+                    blockMessage = `Blocked by: ${blockerName}`;
+                }
+                else {
+                    // It's a text reason
+                    blockedBy = [...blockedBy, arg];
+                    blockMessage = `Blocked: ${arg}`;
+                }
+            }
+        }
         (0, nodeConfig_1.writeNodeConfig)(currentPath, {
             ...nodeConfig,
             status: 'blocked',
-            blockedBy: reason ? [reason] : nodeConfig.blockedBy,
+            blockedBy,
         });
-        return wrapResult({ output: reason ? `Blocked: ${reason}` : 'Task marked as blocked' });
+        return wrapResult({ output: blockMessage });
     }
     // Unblock command
     if (command === 'unblock') {
@@ -508,6 +568,67 @@ async function processCommand(input, currentPath, config, signal, rl) {
             blockedBy: [],
         });
         return wrapResult({ output: 'Task unblocked' });
+    }
+    // Check command - show overdue/upcoming deadlines
+    if (command === 'check') {
+        const checkDeadlines = (dirPath, results) => {
+            if (!fs.existsSync(dirPath))
+                return;
+            const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+            for (const entry of entries) {
+                if (!entry.isDirectory() || entry.name.startsWith('.'))
+                    continue;
+                const nodePath = path.join(dirPath, entry.name);
+                const cfg = (0, nodeConfig_1.readNodeConfig)(nodePath);
+                if (cfg && cfg.deadline && cfg.status !== 'done') {
+                    const deadlineDate = new Date(cfg.deadline);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    deadlineDate.setHours(0, 0, 0, 0);
+                    const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays <= 3) { // Show tasks due within 3 days or overdue
+                        results.push({
+                            path: nodePath,
+                            name: cfg.name,
+                            deadline: formatDeadline(cfg.deadline),
+                            status: diffDays < 0 ? 'OVERDUE' : diffDays === 0 ? 'TODAY' : 'SOON',
+                        });
+                    }
+                }
+                checkDeadlines(nodePath, results);
+            }
+        };
+        const results = [];
+        checkDeadlines(config.storagePath, results);
+        if (results.length === 0) {
+            return wrapResult({ output: 'No upcoming deadlines within 3 days.' });
+        }
+        const lines = ['', '=== DEADLINE CHECK ===', ''];
+        const overdue = results.filter(r => r.status === 'OVERDUE');
+        const today = results.filter(r => r.status === 'TODAY');
+        const soon = results.filter(r => r.status === 'SOON');
+        if (overdue.length > 0) {
+            lines.push('OVERDUE:');
+            for (const r of overdue) {
+                lines.push(`  ! ${r.name} (${r.deadline})`);
+            }
+            lines.push('');
+        }
+        if (today.length > 0) {
+            lines.push('DUE TODAY:');
+            for (const r of today) {
+                lines.push(`  * ${r.name}`);
+            }
+            lines.push('');
+        }
+        if (soon.length > 0) {
+            lines.push('UPCOMING:');
+            for (const r of soon) {
+                lines.push(`  - ${r.name} (${r.deadline})`);
+            }
+            lines.push('');
+        }
+        return wrapResult({ output: lines.join('\n') });
     }
     // Status command - show current task status
     if (command === 'status') {
@@ -531,7 +652,15 @@ async function processCommand(input, currentPath, config, signal, rl) {
             lines.push(`Completed: ${new Date(nodeConfig.completedAt).toLocaleDateString()}`);
         }
         if (nodeConfig.blockedBy && nodeConfig.blockedBy.length > 0) {
-            lines.push(`Blocked by: ${nodeConfig.blockedBy.join(', ')}`);
+            // Format blockedBy - show names if paths exist
+            const blockerNames = nodeConfig.blockedBy.map(b => {
+                if (fs.existsSync(b)) {
+                    const cfg = (0, nodeConfig_1.readNodeConfig)(b);
+                    return cfg?.name || path.basename(b);
+                }
+                return b;
+            });
+            lines.push(`Blocked by: ${blockerNames.join(', ')}`);
         }
         lines.push('');
         return wrapResult({ output: lines.join('\n') });
@@ -850,11 +979,13 @@ Navigation:
 Task Management:
   mkdir <name>          Create new task
   done                  Mark current task as completed (recursive)
+  undo                  Undo last done (restores XP)
   deadline <date>       Set deadline (today, tomorrow, +3d, Jan 15)
   boss                  Toggle boss/milestone status (3x XP)
-  block [reason]        Mark task as blocked
+  block [node]          Block by task (or text reason)
   unblock               Remove blocked status
   status                Show current task details
+  check                 Show overdue/upcoming deadlines
 
 File Operations:
   cp <src> <dest>       Copy file or folder
@@ -885,11 +1016,11 @@ Clipboard:
   <cmd> | pbcopy        Copy output (macOS)
   <cmd> | clip          Copy output (Windows)
 
-Deadlines:
-  deadline today        Due today
-  deadline tomorrow     Due tomorrow
+Examples:
+  block backend-api     Block current task by sibling task
+  block "waiting for design"   Block with text reason
   deadline +3d          Due in 3 days
-  deadline Jan 15       Due on date
+  check                 See all upcoming deadlines
 
 www.rlc.rocks
 `.trim()

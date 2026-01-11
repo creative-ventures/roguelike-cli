@@ -95,11 +95,13 @@ You are now level 2!
 | Command | Description |
 |---------|-------------|
 | `done` | Complete task (recursive, earns XP) |
+| `undo` | Undo last done (restores XP) |
 | `deadline <date>` | Set deadline |
 | `boss` | Toggle boss status (3x XP) |
-| `block [reason]` | Mark as blocked |
+| `block [node]` | Block by task or text reason |
 | `unblock` | Remove blocked status |
 | `status` | Show task details |
+| `check` | Show overdue/upcoming deadlines |
 
 ### Gamification
 

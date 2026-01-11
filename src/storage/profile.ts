@@ -9,6 +9,13 @@ export interface Achievement {
   unlockedAt?: string;
 }
 
+export interface UndoEntry {
+  path: string;
+  xpLost: number;
+  wasBoss: boolean;
+  timestamp: string;
+}
+
 export interface Profile {
   totalXP: number;
   level: number;
@@ -18,6 +25,7 @@ export interface Profile {
   longestStreak: number;
   lastCompletionDate?: string;
   achievements: string[];
+  undoHistory: UndoEntry[];
   stats: {
     completedByDay: Record<string, number>;
     createdAt: string;
@@ -114,6 +122,7 @@ function createDefaultProfile(): Profile {
     currentStreak: 0,
     longestStreak: 0,
     achievements: [],
+    undoHistory: [],
     stats: {
       completedByDay: {},
       createdAt: new Date().toISOString(),
@@ -277,5 +286,61 @@ export function formatAchievements(): string {
   lines.push('');
   
   return lines.join('\n');
+}
+
+export function addToUndoHistory(entry: UndoEntry): void {
+  const profile = readProfile();
+  
+  // Keep only last 10 undo entries
+  profile.undoHistory = profile.undoHistory || [];
+  profile.undoHistory.unshift(entry);
+  if (profile.undoHistory.length > 10) {
+    profile.undoHistory = profile.undoHistory.slice(0, 10);
+  }
+  
+  saveProfile(profile);
+}
+
+export function getLastUndo(): UndoEntry | null {
+  const profile = readProfile();
+  if (!profile.undoHistory || profile.undoHistory.length === 0) {
+    return null;
+  }
+  return profile.undoHistory[0];
+}
+
+export function performUndo(): { success: boolean; entry: UndoEntry | null; message: string } {
+  const profile = readProfile();
+  
+  if (!profile.undoHistory || profile.undoHistory.length === 0) {
+    return { success: false, entry: null, message: 'Nothing to undo.' };
+  }
+  
+  const entry = profile.undoHistory.shift()!;
+  
+  // Subtract XP
+  profile.totalXP = Math.max(0, profile.totalXP - entry.xpLost);
+  profile.tasksCompleted = Math.max(0, profile.tasksCompleted - 1);
+  
+  if (entry.wasBoss) {
+    profile.bossesDefeated = Math.max(0, profile.bossesDefeated - 1);
+  }
+  
+  // Update level
+  profile.level = levelFromXP(profile.totalXP);
+  
+  // Update daily stats
+  const today = new Date().toISOString().split('T')[0];
+  if (profile.stats.completedByDay[today]) {
+    profile.stats.completedByDay[today] = Math.max(0, profile.stats.completedByDay[today] - 1);
+  }
+  
+  saveProfile(profile);
+  
+  return { 
+    success: true, 
+    entry, 
+    message: `Undo: -${entry.xpLost} XP` 
+  };
 }
 

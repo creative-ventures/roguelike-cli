@@ -1,0 +1,625 @@
+import * as path from 'path';
+import * as fs from 'fs';
+import { execSync } from 'child_process';
+import { Config } from '../config/config';
+import { listSchemas, navigateToNode, getTree } from '../storage/storage';
+import { saveSchemaFile } from '../storage/nodeConfig';
+import { generateSchemaWithAI } from '../ai/claude';
+
+export interface CommandResult {
+  output?: string;
+  newPath?: string;
+  reloadConfig?: boolean;
+}
+
+// Pending schema waiting to be saved
+export interface PendingSchema {
+  title: string;
+  content: string;
+  tree?: any[];
+}
+
+// Conversation history for AI context
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// Session state for dialog mode
+export interface SessionState {
+  pending: PendingSchema | null;
+  history: ConversationMessage[];
+}
+
+// Global session state
+export const sessionState: SessionState = {
+  pending: null,
+  history: []
+};
+
+// Format items in columns like native ls
+function formatColumns(items: string[], termWidth: number = 80): string {
+  if (items.length === 0) return '';
+  
+  const maxLen = Math.max(...items.map(s => s.length)) + 2;
+  const cols = Math.max(1, Math.floor(termWidth / maxLen));
+  
+  const rows: string[] = [];
+  for (let i = 0; i < items.length; i += cols) {
+    const row = items.slice(i, i + cols);
+    rows.push(row.map(item => item.padEnd(maxLen)).join('').trimEnd());
+  }
+  
+  return rows.join('\n');
+}
+
+// Copy to clipboard (cross-platform)
+function copyToClipboard(text: string): void {
+  const platform = process.platform;
+  try {
+    if (platform === 'darwin') {
+      execSync('pbcopy', { input: text });
+    } else if (platform === 'win32') {
+      execSync('clip', { input: text });
+    } else {
+      // Linux - try xclip or xsel
+      try {
+        execSync('xclip -selection clipboard', { input: text });
+      } catch {
+        execSync('xsel --clipboard --input', { input: text });
+      }
+    }
+  } catch (e) {
+    // Silently fail if clipboard not available
+  }
+}
+
+// Helper function for recursive copy
+function copyRecursive(src: string, dest: string): void {
+  const stat = fs.statSync(src);
+  
+  if (stat.isDirectory()) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    
+    const entries = fs.readdirSync(src);
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry);
+      const destPath = path.join(dest, entry);
+      copyRecursive(srcPath, destPath);
+    }
+  } else {
+    fs.copyFileSync(src, dest);
+  }
+}
+
+export async function processCommand(
+  input: string,
+  currentPath: string,
+  config: Config,
+  signal?: AbortSignal
+): Promise<CommandResult> {
+  // Check for clipboard pipe
+  const clipboardPipe = /\s*\|\s*(pbcopy|copy|clip)\s*$/i;
+  const shouldCopy = clipboardPipe.test(input);
+  const cleanInput = input.replace(clipboardPipe, '').trim();
+  
+  const parts = cleanInput.split(' ').filter(p => p.length > 0);
+  const command = parts[0].toLowerCase();
+  
+  // Helper to wrap result with clipboard copy
+  const wrapResult = (result: CommandResult): CommandResult => {
+    if (shouldCopy && result.output) {
+      copyToClipboard(result.output);
+      result.output += '\n\n[copied to clipboard]';
+    }
+    return result;
+  };
+  
+  if (command === 'ls') {
+    if (!fs.existsSync(currentPath)) {
+      return wrapResult({ output: 'Directory does not exist.' });
+    }
+    
+    const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+    const items: string[] = [];
+    
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      
+      if (entry.isDirectory()) {
+        items.push(entry.name + '/');
+      } else {
+        items.push(entry.name);
+      }
+    }
+    
+    if (items.length === 0) {
+      return wrapResult({ output: '' });
+    }
+    
+    const termWidth = process.stdout.columns || 80;
+    return wrapResult({ output: formatColumns(items, termWidth) });
+  }
+  
+  if (command === 'tree') {
+    const showFiles = parts.includes('-A') || parts.includes('--all');
+    
+    // Parse depth: --depth=N or -d N
+    let maxDepth = 10;
+    const depthFlag = parts.find(p => p.startsWith('--depth='));
+    if (depthFlag) {
+      maxDepth = parseInt(depthFlag.split('=')[1]) || 10;
+    } else {
+      const dIndex = parts.indexOf('-d');
+      if (dIndex !== -1 && parts[dIndex + 1]) {
+        maxDepth = parseInt(parts[dIndex + 1]) || 10;
+      }
+    }
+    
+    const treeLines = getTree(currentPath, '', true, maxDepth, 0, showFiles);
+    if (treeLines.length === 0) {
+      return wrapResult({ output: 'No items found.' });
+    }
+    return wrapResult({ output: treeLines.join('\n') });
+  }
+  
+  // Handle navigation without 'cd' command (.., ...)
+  if (command === '..' || command === '...') {
+    let levels = command === '...' ? 2 : 1;
+    let targetPath = currentPath;
+    
+    for (let i = 0; i < levels; i++) {
+      const parentPath = path.dirname(targetPath);
+      if (parentPath === config.storagePath || parentPath.length < config.storagePath.length) {
+        return { output: 'Already at root.' };
+      }
+      targetPath = parentPath;
+    }
+    
+    return { newPath: targetPath, output: '' };
+  }
+  
+  if (command === 'mkdir') {
+    if (parts.length < 2) {
+      return { output: 'Usage: mkdir <name>' };
+    }
+    
+    const name = parts.slice(1).join(' ');
+    const { createNode } = require('../storage/nodeConfig');
+    
+    try {
+      const nodePath = createNode(currentPath, name);
+      return { output: `Created: ${name}` };
+    } catch (error: any) {
+      return { output: `Error: ${error.message}` };
+    }
+  }
+  
+  if (command === 'cp') {
+    if (parts.length < 3) {
+      return { output: 'Usage: cp <source> <destination>' };
+    }
+    
+    const source = parts[1];
+    const dest = parts[2];
+    
+    const sourcePath = path.isAbsolute(source) ? source : path.join(currentPath, source);
+    const destPath = path.isAbsolute(dest) ? dest : path.join(currentPath, dest);
+    
+    if (!fs.existsSync(sourcePath)) {
+      return { output: `Source not found: ${source}` };
+    }
+    
+    try {
+      copyRecursive(sourcePath, destPath);
+      return { output: `Copied: ${source} -> ${dest}` };
+    } catch (error: any) {
+      return { output: `Error: ${error.message}` };
+    }
+  }
+  
+  if (command === 'mv' || command === 'move') {
+    if (parts.length < 3) {
+      return { output: 'Usage: mv <source> <destination>' };
+    }
+    
+    const source = parts[1];
+    const dest = parts[2];
+    
+    const sourcePath = path.isAbsolute(source) ? source : path.join(currentPath, source);
+    const destPath = path.isAbsolute(dest) ? dest : path.join(currentPath, dest);
+    
+    if (!fs.existsSync(sourcePath)) {
+      return { output: `Source not found: ${source}` };
+    }
+    
+    try {
+      fs.renameSync(sourcePath, destPath);
+      return { output: `Moved: ${source} -> ${dest}` };
+    } catch (error: any) {
+      // If rename fails (cross-device), copy then delete
+      try {
+        copyRecursive(sourcePath, destPath);
+        fs.rmSync(sourcePath, { recursive: true, force: true });
+        return { output: `Moved: ${source} -> ${dest}` };
+      } catch (e: any) {
+        return { output: `Error: ${e.message}` };
+      }
+    }
+  }
+  
+  if (command === 'open') {
+    const { exec } = require('child_process');
+    
+    // open or open . - open current folder in system file manager
+    if (parts.length < 2 || parts[1] === '.') {
+      exec(`open "${currentPath}"`);
+      return { output: `Opening: ${currentPath}` };
+    }
+    
+    const name = parts.slice(1).join(' ');
+    const targetPath = path.join(currentPath, name);
+    
+    // Check if target exists
+    if (fs.existsSync(targetPath)) {
+      const stat = fs.statSync(targetPath);
+      
+      if (stat.isDirectory()) {
+        // It's a folder, open in file manager
+        exec(`open "${targetPath}"`);
+        return { output: `Opening: ${targetPath}` };
+      }
+      
+      if (stat.isFile()) {
+        // It's a file, show its content (supports | pbcopy)
+        const content = fs.readFileSync(targetPath, 'utf-8');
+        return wrapResult({ output: content });
+      }
+    }
+    
+    return wrapResult({ output: `Not found: ${name}` });
+  }
+  
+  if (command === 'rm') {
+    if (parts.length < 2) {
+      return { output: 'Usage: rm <name> or rm -rf <name>' };
+    }
+    
+    const isRecursive = parts[1] === '-rf' || parts[1] === '-r';
+    const targetName = isRecursive ? parts.slice(2).join(' ') : parts.slice(1).join(' ');
+    
+    if (!targetName) {
+      return { output: 'Usage: rm <name> or rm -rf <name>' };
+    }
+    
+    const targetPath = path.isAbsolute(targetName) ? targetName : path.join(currentPath, targetName);
+    
+    if (!fs.existsSync(targetPath)) {
+      return { output: `Not found: ${targetName}` };
+    }
+    
+    try {
+      if (isRecursive) {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+      } else {
+        const stat = fs.statSync(targetPath);
+        if (stat.isDirectory()) {
+          return { output: `Error: ${targetName} is a directory. Use rm -rf to remove directories.` };
+        }
+        fs.unlinkSync(targetPath);
+      }
+      return { output: `Removed: ${targetName}` };
+    } catch (error: any) {
+      return { output: `Error: ${error.message}` };
+    }
+  }
+  
+  if (command === 'init') {
+    const { initCommand } = await import('../commands/init');
+    await initCommand();
+    return { output: 'Initialization complete. You can now use rlc.\n', reloadConfig: true };
+  }
+  
+  if (command === 'cd') {
+    if (parts.length < 2) {
+      return { output: 'Usage: cd <node> or cd .. or cd <path>' };
+    }
+    
+    const target = parts.slice(1).join(' ');
+    
+    if (target === '..') {
+      const parentPath = path.dirname(currentPath);
+      if (parentPath === config.storagePath || parentPath.length < config.storagePath.length) {
+        return { output: 'Already at root.' };
+      }
+      return { newPath: parentPath, output: '' };
+    }
+    
+    if (target === '...') {
+      let targetPath = path.dirname(currentPath);
+      targetPath = path.dirname(targetPath);
+      if (targetPath.length < config.storagePath.length) {
+        return { output: 'Already at root.' };
+      }
+      return { newPath: targetPath, output: '' };
+    }
+    
+    // Handle paths like "cd bank/account" or "cd ../other"
+    if (target.includes('/')) {
+      let targetPath = currentPath;
+      const pathParts = target.split('/');
+      
+      for (const part of pathParts) {
+        if (part === '..') {
+          targetPath = path.dirname(targetPath);
+        } else if (part === '.') {
+          continue;
+        } else {
+          const newPath = navigateToNode(targetPath, part);
+          if (!newPath) {
+            return { output: `Path "${target}" not found.` };
+          }
+          targetPath = newPath;
+        }
+      }
+      
+      return { newPath: targetPath, output: '' };
+    }
+    
+    const newPath = navigateToNode(currentPath, target);
+    if (!newPath) {
+      return { output: `Node "${target}" not found.` };
+    }
+    
+    return { newPath, output: '' };
+  }
+  
+  if (command === 'pwd') {
+    return wrapResult({ output: currentPath });
+  }
+  
+  if (command === 'config') {
+    const maskedKey = config.apiKey 
+      ? config.apiKey.slice(0, 8) + '...' + config.apiKey.slice(-4)
+      : '(not set)';
+    
+    const output = `
+Provider:     ${config.aiProvider}
+Model:        ${config.model || '(default)'}
+API Key:      ${maskedKey}
+Storage:      ${config.storagePath}
+`.trim();
+    
+    return wrapResult({ output });
+  }
+  
+  if (command.startsWith('config:')) {
+    const configParts = input.split(':').slice(1).join(':').trim().split('=');
+    if (configParts.length !== 2) {
+      return { output: 'Usage: config:key=value' };
+    }
+    
+    const key = configParts[0].trim();
+    const value = configParts[1].trim();
+    
+    if (key === 'apiKey') {
+      const { updateConfig } = await import('../config/config');
+      updateConfig({ apiKey: value });
+      return { output: 'API key updated.' };
+    }
+    
+    if (key === 'storagePath') {
+      const { updateConfig } = await import('../config/config');
+      updateConfig({ storagePath: value, currentPath: value });
+      return { output: `Storage path updated to: ${value}` };
+    }
+    
+    return { output: `Unknown config key: ${key}` };
+  }
+  
+  if (command === 'help') {
+    return wrapResult({
+      output: `Commands:
+  init                  - Initialize rlc (first time setup)
+  ls                    - List all schemas, todos, and notes
+  tree                  - Show directory tree structure
+  tree -A               - Show tree with files
+  tree --depth=N        - Limit tree depth (e.g., --depth=2)
+  cd <node>             - Navigate into a node
+  cd ..                 - Go back to parent
+  pwd                   - Show current path
+  open                  - Open current folder in Finder
+  open <folder>         - Open specific folder in Finder
+  mkdir <name>          - Create new folder
+  cp <src> <dest>       - Copy file or folder
+  mv <src> <dest>       - Move/rename file or folder
+  rm <name>             - Delete file
+  rm -rf <name>         - Delete folder recursively
+  config                - Show configuration
+  config:apiKey=<key>   - Set API key
+  <description>         - Create schema/todo (AI generates preview)
+  save                  - Save pending schema to disk
+  cancel                - Discard pending schema
+  clean                 - Show items to delete in current folder
+  clean --yes           - Delete all items in current folder
+  exit/quit             - Exit the program
+
+Clipboard:
+  ls | pbcopy           - Copy output to clipboard (macOS)
+  tree | pbcopy         - Works with any command
+  config | copy         - Alternative for Windows
+
+Workflow:
+  1. Type description (e.g., "todo: deploy app")
+  2. AI generates schema preview
+  3. Refine with more instructions if needed
+  4. Type "save" to save or "cancel" to discard
+
+Examples:
+
+  > todo opening company in delaware
+
+  ┌─ TODO opening company in delaware ───────────────────────────┐
+  │                                                               │
+  ├── register business name                                     │
+  ├── file incorporation papers                                  │
+  ├── get EIN number                                             │
+  └── Branch: legal                                               │
+      └── open business bank account                             │
+  │                                                               │
+  └───────────────────────────────────────────────────────────────┘
+
+  > yandex cloud production infrastructure
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │                  Yandex Cloud                               │
+  │                                                             │
+  │  ┌──────────────────┐      ┌──────────────────┐           │
+  │  │ back-fastapi     │      │ admin-next       │           │
+  │  │ (VM)             │      │ (VM)             │           │
+  │  └────────┬─────────┘      └──────────────────┘           │
+  │           │                                                 │
+  │           ├──────────────────┬─────────────────┐           │
+  │           │                  │                 │           │
+  │  ┌────────▼────────┐  ┌─────▼──────┐   ┌──────▼────────┐  │
+  │  │   PostgreSQL    │  │   Redis    │   │  Cloudflare   │  │
+  │  │  (Existing DB)  │  │  Cluster   │   │  R2 Storage   │  │
+  │  └─────────────────┘  └────────────┘   └───────────────┘  │
+  └─────────────────────────────────────────────────────────────┘
+
+  > architecture production redis web application
+
+  ┌─ Architecture production redis web application ────────────┐
+  │                                                               │
+  ├── load-balancer                                               │
+  ├── web-servers                                                 │
+  │   ├── app-server-1                                            │
+  │   ├── app-server-2                                            │
+  │   └── app-server-3                                            │
+  ├── redis                                                       │
+  │   ├── cache-cluster                                           │
+  │   └── session-store                                           │
+  └── database                                                    │
+      ├── postgres-primary                                        │
+      └── postgres-replica                                        │
+  │                                                               │
+  └───────────────────────────────────────────────────────────────┘
+
+  > kubernetes cluster with clusters postgres and redis
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │         Kubernetes cluster with clusters postgres          │
+  │                                                             │
+  │  ┌──────────────┐      ┌──────────────┐                  │
+  │  │   postgres   │      │    redis     │                  │
+  │  │              │      │              │                  │
+  │  │ primary-pod  │      │ cache-pod-1  │                  │
+  │  │ replica-pod-1│      │ cache-pod-2  │                  │
+  │  │ replica-pod-2│      │              │                  │
+  │  └──────┬───────┘      └──────┬───────┘                  │
+  │         │                      │                           │
+  │         └──────────┬───────────┘                           │
+  │                    │                                         │
+  │            ┌───────▼────────┐                              │
+  │            │ worker-zones   │                              │
+  │            │   zone-1       │                              │
+  │            │   zone-2       │                              │
+  │            └────────────────┘                              │
+  └─────────────────────────────────────────────────────────────┘
+
+www.rlc.rocks`
+    });
+  }
+  
+  // Save command - save pending schema to .rlc.schema file
+  if (command === 'save') {
+    if (!sessionState.pending) {
+      return wrapResult({ output: 'Nothing to save. Create a schema first.' });
+    }
+    
+    const schemaPath = saveSchemaFile(
+      currentPath,
+      sessionState.pending.title,
+      sessionState.pending.content
+    );
+    const relativePath = path.relative(config.storagePath, schemaPath);
+    const filename = path.basename(schemaPath);
+    
+    // Clear session
+    sessionState.pending = null;
+    sessionState.history = [];
+    
+    return wrapResult({ output: `Saved: ${filename}` });
+  }
+  
+  // Cancel command - discard pending schema
+  if (command === 'cancel') {
+    if (!sessionState.pending) {
+      return wrapResult({ output: 'Nothing to cancel.' });
+    }
+    
+    sessionState.pending = null;
+    sessionState.history = [];
+    
+    return wrapResult({ output: 'Discarded pending schema.' });
+  }
+  
+  // Clean command - clear current directory
+  if (command === 'clean') {
+    const entries = fs.readdirSync(currentPath);
+    const toDelete = entries.filter(e => !e.startsWith('.'));
+    
+    if (toDelete.length === 0) {
+      return wrapResult({ output: 'Directory is already empty.' });
+    }
+    
+    // Check for --yes flag to skip confirmation
+    if (!parts.includes('--yes') && !parts.includes('-y')) {
+      return wrapResult({ 
+        output: `Will delete ${toDelete.length} items:\n${toDelete.join('\n')}\n\nRun "clean --yes" to confirm.` 
+      });
+    }
+    
+    for (const entry of toDelete) {
+      const entryPath = path.join(currentPath, entry);
+      fs.rmSync(entryPath, { recursive: true, force: true });
+    }
+    
+    return wrapResult({ output: `Deleted ${toDelete.length} items.` });
+  }
+  
+  // AI generation - store in pending, don't save immediately
+  const fullInput = cleanInput;
+  
+  // Add user message to history
+  sessionState.history.push({ role: 'user', content: fullInput });
+  
+  const schema = await generateSchemaWithAI(fullInput, config, signal, sessionState.history);
+  
+  if (signal?.aborted) {
+    return { output: 'Command cancelled.' };
+  }
+  
+  if (schema) {
+    // Store in pending
+    sessionState.pending = {
+      title: schema.title,
+      content: schema.content,
+      tree: schema.tree
+    };
+    
+    // Add assistant response to history
+    sessionState.history.push({ role: 'assistant', content: schema.content });
+    
+    const filename = schema.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    
+    return wrapResult({ 
+      output: `\n${schema.content}\n\n[Type "save" to save as ${filename}.rlc.schema, or refine with more instructions]` 
+    });
+  }
+  
+  return wrapResult({ output: 'Could not generate schema. Make sure API key is set.' });
+}
+

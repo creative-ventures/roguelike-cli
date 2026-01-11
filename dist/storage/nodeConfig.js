@@ -36,7 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.readNodeConfig = readNodeConfig;
 exports.writeNodeConfig = writeNodeConfig;
 exports.createNode = createNode;
+exports.calculateXP = calculateXP;
 exports.saveSchemaFile = saveSchemaFile;
+exports.saveMapFile = saveMapFile;
 exports.readSchemaFile = readSchemaFile;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -48,7 +50,13 @@ function readNodeConfig(nodePath) {
     }
     try {
         const data = fs.readFileSync(configPath, 'utf-8');
-        return JSON.parse(data);
+        const config = JSON.parse(data);
+        // Ensure defaults for older configs
+        return {
+            status: 'open',
+            xp: 10,
+            ...config,
+        };
     }
     catch {
         return null;
@@ -61,6 +69,9 @@ function writeNodeConfig(nodePath, config) {
     const configPath = path.join(nodePath, CONFIG_FILE);
     const existing = readNodeConfig(nodePath);
     const updated = {
+        name: config.name || existing?.name || path.basename(nodePath),
+        status: config.status ?? existing?.status ?? 'open',
+        xp: config.xp ?? existing?.xp ?? 10,
         ...existing,
         ...config,
         updatedAt: new Date().toISOString(),
@@ -76,7 +87,10 @@ function createNode(parentPath, name, options) {
     const nodePath = path.join(parentPath, safeName);
     const config = {
         name,
+        status: 'open',
+        xp: options?.xp || 10,
         deadline: options?.deadline,
+        isBoss: options?.isBoss,
         branch: options?.branch,
         zone: options?.zone,
         description: options?.description,
@@ -86,6 +100,13 @@ function createNode(parentPath, name, options) {
     };
     writeNodeConfig(nodePath, config);
     return nodePath;
+}
+// Calculate XP based on depth (deeper = more XP)
+function calculateXP(depth, isBoss = false) {
+    const baseXP = 10;
+    const depthBonus = depth * 5;
+    const bossMultiplier = isBoss ? 3 : 1;
+    return (baseXP + depthBonus) * bossMultiplier;
 }
 // Save schema content to .rlc.schema file
 function saveSchemaFile(dirPath, filename, content) {
@@ -99,6 +120,19 @@ function saveSchemaFile(dirPath, filename, content) {
     const schemaPath = path.join(dirPath, `${safeName}.rlc.schema`);
     fs.writeFileSync(schemaPath, content, 'utf-8');
     return schemaPath;
+}
+// Save map content to .rlc.map file
+function saveMapFile(dirPath, filename, content) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+    const safeName = filename
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    const mapPath = path.join(dirPath, `${safeName}.rlc.map`);
+    fs.writeFileSync(mapPath, content, 'utf-8');
+    return mapPath;
 }
 // Read schema file
 function readSchemaFile(filePath) {

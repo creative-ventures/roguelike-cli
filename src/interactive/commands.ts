@@ -4,40 +4,38 @@ import * as readline from 'readline';
 import { execSync } from 'child_process';
 import { Config } from '../config/config';
 import { listSchemas, navigateToNode, getTree } from '../storage/storage';
-import { saveSchemaFile, writeNodeConfig } from '../storage/nodeConfig';
-import { generateSchemaWithAI } from '../ai/claude';
+import { saveSchemaFile, writeNodeConfig, readNodeConfig, calculateXP, saveMapFile, NodeConfig } from '../storage/nodeConfig';
+import { generateSchemaWithAI, generateDungeonMapWithAI } from '../ai/claude';
+import { completeTask, formatStats, formatAchievements, readProfile } from '../storage/profile';
 
 // Parse tree ASCII art and create folder structure
 function createFoldersFromTree(rootPath: string, treeContent: string): void {
-  // Create root folder
   if (!fs.existsSync(rootPath)) {
     fs.mkdirSync(rootPath, { recursive: true });
   }
   
-  // Parse tree lines
   const lines = treeContent.split('\n');
   const stack: { path: string; indent: number }[] = [{ path: rootPath, indent: -1 }];
   
   for (const line of lines) {
-    // Skip empty lines
     if (!line.trim()) continue;
     
-    // Extract node name from tree line
-    // Patterns: "├── Name", "└── Name", "│   ├── Name", etc.
     const match = line.match(/^([\s│]*)[├└]──\s*(.+)$/);
     if (!match) continue;
     
     const prefix = match[1];
     let nodeName = match[2].trim();
-    
-    // Calculate indent level (each │ or space block = 1 level)
     const indent = Math.floor(prefix.replace(/│/g, ' ').length / 4);
     
-    // Clean node name - remove extra info in parentheses, brackets
+    // Extract metadata from node name
+    const isBoss = /\[BOSS\]/i.test(nodeName) || /\[MILESTONE\]/i.test(nodeName);
+    const deadlineMatch = nodeName.match(/\[(?:DUE|DEADLINE):\s*([^\]]+)\]/i);
+    const deadline = deadlineMatch ? deadlineMatch[1].trim() : undefined;
+    
+    // Clean node name
     nodeName = nodeName.replace(/\s*\([^)]*\)\s*/g, '').trim();
     nodeName = nodeName.replace(/\s*\[[^\]]*\]\s*/g, '').trim();
     
-    // Create safe folder name
     const safeName = nodeName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -45,7 +43,6 @@ function createFoldersFromTree(rootPath: string, treeContent: string): void {
     
     if (!safeName) continue;
     
-    // Pop stack until we find parent
     while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
       stack.pop();
     }
@@ -53,25 +50,29 @@ function createFoldersFromTree(rootPath: string, treeContent: string): void {
     const parentPath = stack[stack.length - 1].path;
     const folderPath = path.join(parentPath, safeName);
     
-    // Create folder
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath, { recursive: true });
     }
     
-    // Create node config
+    // Calculate depth for XP
+    const depth = stack.length;
+    
     writeNodeConfig(folderPath, {
       name: nodeName,
+      status: 'open',
+      xp: calculateXP(depth, isBoss),
+      isBoss,
+      deadline,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
     
-    // Push to stack
     stack.push({ path: folderPath, indent });
   }
 }
 
 // Generate dungeon map visualization from folder structure
-function generateDungeonMap(dirPath: string): string {
+function generateDungeonMap(dirPath: string, config: Config): string {
   if (!fs.existsSync(dirPath)) {
     return 'Directory does not exist.';
   }
@@ -86,32 +87,33 @@ function generateDungeonMap(dirPath: string): string {
   const lines: string[] = [];
   const roomWidth = 20;
   const roomsPerRow = 2;
-  const wall = '█';
+  const wall = '#';
   const door = '+';
   const task = '*';
   const milestone = '@';
+  const done = 'x';
+  const blocked = '!';
   
-  // Group folders into rows of 2
   const rows: typeof folders[] = [];
   for (let i = 0; i < folders.length; i += roomsPerRow) {
     rows.push(folders.slice(i, i + roomsPerRow));
   }
   
-  // Top border
+  lines.push('');
   lines.push('  ' + wall.repeat(roomWidth * roomsPerRow + 3));
   
   rows.forEach((row, rowIndex) => {
-    // Room content
     for (let line = 0; line < 6; line++) {
       let rowStr = '  ' + wall;
       
       row.forEach((folder, colIndex) => {
-        const name = folder.name.replace(/-/g, ' ');
+        const folderPath = path.join(dirPath, folder.name);
+        const nodeConfig = readNodeConfig(folderPath);
+        const name = (nodeConfig?.name || folder.name).replace(/-/g, ' ');
         const displayName = name.length > roomWidth - 4 
           ? name.substring(0, roomWidth - 7) + '...' 
           : name;
         
-        // Get sub-items
         const subPath = path.join(dirPath, folder.name);
         const subEntries = fs.existsSync(subPath) 
           ? fs.readdirSync(subPath, { withFileTypes: true })
@@ -119,25 +121,32 @@ function generateDungeonMap(dirPath: string): string {
           : [];
         
         if (line === 0) {
-          // Empty line
           rowStr += ' '.repeat(roomWidth - 1) + wall;
         } else if (line === 1) {
-          // Room name
+          const statusIcon = nodeConfig?.status === 'done' ? '[DONE]' 
+            : nodeConfig?.isBoss ? '[BOSS]' 
+            : '';
+          const title = statusIcon ? `${statusIcon}` : `[${displayName}]`;
+          const padding = roomWidth - title.length - 1;
+          rowStr += ' ' + title + ' '.repeat(Math.max(0, padding - 1)) + wall;
+        } else if (line === 2 && !nodeConfig?.isBoss) {
           const title = `[${displayName}]`;
           const padding = roomWidth - title.length - 1;
           rowStr += ' ' + title + ' '.repeat(Math.max(0, padding - 1)) + wall;
         } else if (line >= 2 && line <= 4) {
-          // Sub-items
-          const itemIndex = line - 2;
-          if (itemIndex < subEntries.length) {
-            const subName = subEntries[itemIndex].name.replace(/-/g, ' ');
+          const itemIndex = nodeConfig?.isBoss ? line - 2 : line - 3;
+          if (itemIndex >= 0 && itemIndex < subEntries.length) {
+            const subConfig = readNodeConfig(path.join(subPath, subEntries[itemIndex].name));
+            const subName = (subConfig?.name || subEntries[itemIndex].name).replace(/-/g, ' ');
             const shortName = subName.length > roomWidth - 6 
               ? subName.substring(0, roomWidth - 9) + '...' 
               : subName;
-            const marker = subName.toLowerCase().includes('boss') || 
-                          subName.toLowerCase().includes('launch') ||
-                          subName.toLowerCase().includes('deploy')
-              ? milestone : task;
+            
+            let marker = task;
+            if (subConfig?.status === 'done') marker = done;
+            else if (subConfig?.status === 'blocked') marker = blocked;
+            else if (subConfig?.isBoss) marker = milestone;
+            
             const itemStr = `${marker} ${shortName}`;
             const itemPadding = roomWidth - itemStr.length - 1;
             rowStr += ' ' + itemStr + ' '.repeat(Math.max(0, itemPadding - 1)) + wall;
@@ -145,11 +154,9 @@ function generateDungeonMap(dirPath: string): string {
             rowStr += ' '.repeat(roomWidth - 1) + wall;
           }
         } else {
-          // Empty line
           rowStr += ' '.repeat(roomWidth - 1) + wall;
         }
         
-        // Add door between rooms
         if (colIndex < row.length - 1 && line === 3) {
           rowStr = rowStr.slice(0, -1) + door + door + door;
         } else if (colIndex < row.length - 1) {
@@ -157,7 +164,6 @@ function generateDungeonMap(dirPath: string): string {
         }
       });
       
-      // Fill empty space if odd number of rooms
       if (row.length < roomsPerRow) {
         rowStr += ' '.repeat(roomWidth) + wall;
       }
@@ -165,16 +171,14 @@ function generateDungeonMap(dirPath: string): string {
       lines.push(rowStr);
     }
     
-    // Bottom border with doors to next row
     if (rowIndex < rows.length - 1) {
       let borderStr = '  ' + wall.repeat(Math.floor(roomWidth / 2)) + door;
       borderStr += wall.repeat(roomWidth - 1) + door;
       borderStr += wall.repeat(Math.floor(roomWidth / 2) + 1);
       lines.push(borderStr);
       
-      // Corridor
-      let corridorStr = '  ' + ' '.repeat(Math.floor(roomWidth / 2)) + '│';
-      corridorStr += ' '.repeat(roomWidth - 1) + '│';
+      let corridorStr = '  ' + ' '.repeat(Math.floor(roomWidth / 2)) + '|';
+      corridorStr += ' '.repeat(roomWidth - 1) + '|';
       lines.push(corridorStr);
       
       borderStr = '  ' + wall.repeat(Math.floor(roomWidth / 2)) + door;
@@ -184,14 +188,103 @@ function generateDungeonMap(dirPath: string): string {
     }
   });
   
-  // Bottom border
   lines.push('  ' + wall.repeat(roomWidth * roomsPerRow + 3));
   
-  // Legend
   lines.push('');
-  lines.push(`Legend: ${task} Task  ${milestone} Milestone  ${door} Door  ${wall} Wall`);
+  lines.push(`Legend: ${task} Task  ${done} Done  ${milestone} Boss/Milestone  ${blocked} Blocked  ${door} Door`);
   
   return lines.join('\n');
+}
+
+// Parse human-readable date
+function parseDeadline(input: string): string | null {
+  const lower = input.toLowerCase().trim();
+  const today = new Date();
+  
+  if (lower === 'today') {
+    return today.toISOString().split('T')[0];
+  }
+  
+  if (lower === 'tomorrow') {
+    today.setDate(today.getDate() + 1);
+    return today.toISOString().split('T')[0];
+  }
+  
+  // +Nd format (e.g., +3d, +7d)
+  const plusDaysMatch = lower.match(/^\+(\d+)d$/);
+  if (plusDaysMatch) {
+    today.setDate(today.getDate() + parseInt(plusDaysMatch[1]));
+    return today.toISOString().split('T')[0];
+  }
+  
+  // Try parsing as date
+  const parsed = new Date(input);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+  
+  return null;
+}
+
+// Format deadline for display
+function formatDeadline(deadline: string): string {
+  const deadlineDate = new Date(deadline);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadlineDate.setHours(0, 0, 0, 0);
+  
+  const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return `OVERDUE ${Math.abs(diffDays)}d`;
+  if (diffDays === 0) return 'TODAY';
+  if (diffDays === 1) return 'tomorrow';
+  if (diffDays <= 7) return `${diffDays}d left`;
+  
+  return deadlineDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// Get depth of current path relative to storage root
+function getDepth(currentPath: string, storagePath: string): number {
+  const relative = path.relative(storagePath, currentPath);
+  if (!relative) return 0;
+  return relative.split(path.sep).length;
+}
+
+// Mark node as done recursively
+function markDoneRecursive(nodePath: string, storagePath: string): { xpGained: number; tasksCompleted: number; bossesDefeated: number } {
+  let result = { xpGained: 0, tasksCompleted: 0, bossesDefeated: 0 };
+  
+  const config = readNodeConfig(nodePath);
+  if (!config || config.status === 'done') {
+    return result;
+  }
+  
+  // First, mark all children as done
+  const entries = fs.readdirSync(nodePath, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory() && !entry.name.startsWith('.')) {
+      const childResult = markDoneRecursive(path.join(nodePath, entry.name), storagePath);
+      result.xpGained += childResult.xpGained;
+      result.tasksCompleted += childResult.tasksCompleted;
+      result.bossesDefeated += childResult.bossesDefeated;
+    }
+  }
+  
+  // Mark this node as done
+  const depth = getDepth(nodePath, storagePath);
+  const xp = config.xp || calculateXP(depth, config.isBoss || false);
+  
+  writeNodeConfig(nodePath, {
+    ...config,
+    status: 'done',
+    completedAt: new Date().toISOString(),
+  });
+  
+  result.xpGained += xp;
+  result.tasksCompleted += 1;
+  if (config.isBoss) result.bossesDefeated += 1;
+  
+  return result;
 }
 
 export interface CommandResult {
@@ -200,7 +293,6 @@ export interface CommandResult {
   reloadConfig?: boolean;
 }
 
-// Pending schema waiting to be saved
 export interface PendingSchema {
   title: string;
   content: string;
@@ -208,25 +300,21 @@ export interface PendingSchema {
   tree?: any[];
 }
 
-// Conversation history for AI context
 export interface ConversationMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-// Session state for dialog mode
 export interface SessionState {
   pending: PendingSchema | null;
   history: ConversationMessage[];
 }
 
-// Global session state
 export const sessionState: SessionState = {
   pending: null,
   history: []
 };
 
-// Format items in columns like native ls
 function formatColumns(items: string[], termWidth: number = 80): string {
   if (items.length === 0) return '';
   
@@ -242,7 +330,6 @@ function formatColumns(items: string[], termWidth: number = 80): string {
   return rows.join('\n');
 }
 
-// Copy to clipboard (cross-platform)
 function copyToClipboard(text: string): void {
   const platform = process.platform;
   try {
@@ -251,7 +338,6 @@ function copyToClipboard(text: string): void {
     } else if (platform === 'win32') {
       execSync('clip', { input: text });
     } else {
-      // Linux - try xclip or xsel
       try {
         execSync('xclip -selection clipboard', { input: text });
       } catch {
@@ -259,11 +345,10 @@ function copyToClipboard(text: string): void {
       }
     }
   } catch (e) {
-    // Silently fail if clipboard not available
+    // Silently fail
   }
 }
 
-// Helper function for recursive copy
 function copyRecursive(src: string, dest: string): void {
   const stat = fs.statSync(src);
   
@@ -283,6 +368,81 @@ function copyRecursive(src: string, dest: string): void {
   }
 }
 
+// Build tree with status and deadline info
+function getTreeWithStatus(
+  dirPath: string,
+  prefix: string = '',
+  isRoot: boolean = true,
+  maxDepth: number = 10,
+  currentDepth: number = 0,
+  showFiles: boolean = false
+): string[] {
+  const lines: string[] = [];
+  
+  if (!fs.existsSync(dirPath)) {
+    return lines;
+  }
+  
+  if (currentDepth >= maxDepth) {
+    return lines;
+  }
+  
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const dirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.'));
+  const files = showFiles ? entries.filter(e => e.isFile() && !e.name.startsWith('.')) : [];
+  
+  const allItems = [...dirs, ...files];
+  
+  allItems.forEach((entry, index) => {
+    const isLast = index === allItems.length - 1;
+    const connector = isLast ? '└── ' : '├── ';
+    const nextPrefix = isLast ? '    ' : '│   ';
+    
+    if (entry.isDirectory()) {
+      const nodePath = path.join(dirPath, entry.name);
+      const config = readNodeConfig(nodePath);
+      
+      let displayName = config?.name || entry.name;
+      const tags: string[] = [];
+      
+      // Add status tag
+      if (config?.status === 'done') {
+        tags.push('DONE');
+      } else if (config?.status === 'blocked') {
+        tags.push('BLOCKED');
+      }
+      
+      // Add boss tag
+      if (config?.isBoss) {
+        tags.push('BOSS');
+      }
+      
+      // Add deadline tag
+      if (config?.deadline && config.status !== 'done') {
+        tags.push(formatDeadline(config.deadline));
+      }
+      
+      const tagStr = tags.length > 0 ? ` [${tags.join('] [')}]` : '';
+      
+      lines.push(`${prefix}${connector}${displayName}/${tagStr}`);
+      
+      const childLines = getTreeWithStatus(
+        nodePath,
+        prefix + nextPrefix,
+        false,
+        maxDepth,
+        currentDepth + 1,
+        showFiles
+      );
+      lines.push(...childLines);
+    } else {
+      lines.push(`${prefix}${connector}${entry.name}`);
+    }
+  });
+  
+  return lines;
+}
+
 export async function processCommand(
   input: string,
   currentPath: string,
@@ -290,7 +450,6 @@ export async function processCommand(
   signal?: AbortSignal,
   rl?: readline.Interface
 ): Promise<CommandResult> {
-  // Check for clipboard pipe
   const clipboardPipe = /\s*\|\s*(pbcopy|copy|clip)\s*$/i;
   const shouldCopy = clipboardPipe.test(input);
   const cleanInput = input.replace(clipboardPipe, '').trim();
@@ -298,7 +457,6 @@ export async function processCommand(
   const parts = cleanInput.split(' ').filter(p => p.length > 0);
   const command = parts[0].toLowerCase();
   
-  // Helper to wrap result with clipboard copy
   const wrapResult = (result: CommandResult): CommandResult => {
     if (shouldCopy && result.output) {
       copyToClipboard(result.output);
@@ -313,9 +471,202 @@ export async function processCommand(
     return wrapResult({ output: `Roguelike CLI v${pkg.version}` });
   }
   
+  // Stats command
+  if (command === 'stats') {
+    return wrapResult({ output: formatStats() });
+  }
+  
+  // Achievements command
+  if (command === 'achievements' || command === 'ach') {
+    return wrapResult({ output: formatAchievements() });
+  }
+  
+  // Done command - mark current node as completed
+  if (command === 'done') {
+    const nodeConfig = readNodeConfig(currentPath);
+    
+    if (!nodeConfig) {
+      return wrapResult({ output: 'No task at current location. Navigate to a task first.' });
+    }
+    
+    if (nodeConfig.status === 'done') {
+      return wrapResult({ output: 'This task is already completed.' });
+    }
+    
+    // Mark done recursively
+    const result = markDoneRecursive(currentPath, config.storagePath);
+    
+    // Update profile with XP and achievements
+    const depth = getDepth(currentPath, config.storagePath);
+    const taskResult = completeTask(
+      result.xpGained,
+      nodeConfig.isBoss || false,
+      depth,
+      nodeConfig.createdAt
+    );
+    
+    let output = `\n=== TASK COMPLETED ===\n`;
+    output += `\nTasks completed: ${result.tasksCompleted}`;
+    if (result.bossesDefeated > 0) {
+      output += `\nBosses defeated: ${result.bossesDefeated}`;
+    }
+    output += `\n+${result.xpGained} XP`;
+    
+    if (taskResult.levelUp) {
+      output += `\n\n*** LEVEL UP! ***`;
+      output += `\nYou are now level ${taskResult.newLevel}!`;
+    }
+    
+    if (taskResult.newAchievements.length > 0) {
+      output += `\n\n=== NEW ACHIEVEMENTS ===`;
+      for (const ach of taskResult.newAchievements) {
+        output += `\n[x] ${ach.name}: ${ach.description}`;
+      }
+    }
+    
+    output += '\n';
+    
+    return wrapResult({ output });
+  }
+  
+  // Deadline command
+  if (command === 'deadline') {
+    if (parts.length < 2) {
+      return wrapResult({ output: 'Usage: deadline <date>\nExamples: deadline today, deadline tomorrow, deadline +3d, deadline Jan 15' });
+    }
+    
+    const dateStr = parts.slice(1).join(' ');
+    const deadline = parseDeadline(dateStr);
+    
+    if (!deadline) {
+      return wrapResult({ output: `Could not parse date: ${dateStr}` });
+    }
+    
+    const nodeConfig = readNodeConfig(currentPath);
+    if (!nodeConfig) {
+      return wrapResult({ output: 'No task at current location.' });
+    }
+    
+    writeNodeConfig(currentPath, {
+      ...nodeConfig,
+      deadline,
+    });
+    
+    return wrapResult({ output: `Deadline set: ${formatDeadline(deadline)}` });
+  }
+  
+  // Boss command - mark as boss/milestone
+  if (command === 'boss' || command === 'milestone') {
+    const nodeConfig = readNodeConfig(currentPath);
+    if (!nodeConfig) {
+      return wrapResult({ output: 'No task at current location.' });
+    }
+    
+    const newIsBoss = !nodeConfig.isBoss;
+    const depth = getDepth(currentPath, config.storagePath);
+    
+    writeNodeConfig(currentPath, {
+      ...nodeConfig,
+      isBoss: newIsBoss,
+      xp: calculateXP(depth, newIsBoss),
+    });
+    
+    return wrapResult({ output: newIsBoss ? 'Marked as BOSS task (3x XP)' : 'Removed BOSS status' });
+  }
+  
+  // Block command
+  if (command === 'block') {
+    const nodeConfig = readNodeConfig(currentPath);
+    if (!nodeConfig) {
+      return wrapResult({ output: 'No task at current location.' });
+    }
+    
+    const reason = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
+    
+    writeNodeConfig(currentPath, {
+      ...nodeConfig,
+      status: 'blocked',
+      blockedBy: reason ? [reason] : nodeConfig.blockedBy,
+    });
+    
+    return wrapResult({ output: reason ? `Blocked: ${reason}` : 'Task marked as blocked' });
+  }
+  
+  // Unblock command
+  if (command === 'unblock') {
+    const nodeConfig = readNodeConfig(currentPath);
+    if (!nodeConfig) {
+      return wrapResult({ output: 'No task at current location.' });
+    }
+    
+    writeNodeConfig(currentPath, {
+      ...nodeConfig,
+      status: 'open',
+      blockedBy: [],
+    });
+    
+    return wrapResult({ output: 'Task unblocked' });
+  }
+  
+  // Status command - show current task status
+  if (command === 'status') {
+    const nodeConfig = readNodeConfig(currentPath);
+    if (!nodeConfig) {
+      return wrapResult({ output: 'No task at current location.' });
+    }
+    
+    const lines: string[] = [
+      '',
+      `Task: ${nodeConfig.name}`,
+      `Status: ${nodeConfig.status.toUpperCase()}`,
+      `XP: ${nodeConfig.xp}`,
+    ];
+    
+    if (nodeConfig.isBoss) {
+      lines.push('Type: BOSS');
+    }
+    
+    if (nodeConfig.deadline) {
+      lines.push(`Deadline: ${formatDeadline(nodeConfig.deadline)}`);
+    }
+    
+    if (nodeConfig.completedAt) {
+      lines.push(`Completed: ${new Date(nodeConfig.completedAt).toLocaleDateString()}`);
+    }
+    
+    if (nodeConfig.blockedBy && nodeConfig.blockedBy.length > 0) {
+      lines.push(`Blocked by: ${nodeConfig.blockedBy.join(', ')}`);
+    }
+    
+    lines.push('');
+    
+    return wrapResult({ output: lines.join('\n') });
+  }
+  
   // Map command - dungeon visualization
   if (command === 'map') {
-    const dungeonMap = generateDungeonMap(currentPath);
+    // Check for --ai flag to use AI generation
+    if (parts.includes('--ai') || parts.includes('-a')) {
+      const treeLines = getTreeWithStatus(currentPath, '', true, 10, 0, false);
+      const treeContent = treeLines.join('\n');
+      
+      if (!treeContent) {
+        return wrapResult({ output: 'No tasks to visualize.' });
+      }
+      
+      const mapContent = await generateDungeonMapWithAI(treeContent, config, signal);
+      
+      if (mapContent) {
+        // Save map to file
+        const folderName = path.basename(currentPath);
+        saveMapFile(currentPath, folderName + '-map', mapContent);
+        return wrapResult({ output: mapContent + '\n\n[Map saved as .rlc.map]' });
+      }
+      
+      return wrapResult({ output: 'Could not generate AI map. Using default.' });
+    }
+    
+    const dungeonMap = generateDungeonMap(currentPath, config);
     return wrapResult({ output: dungeonMap });
   }
   
@@ -331,7 +682,15 @@ export async function processCommand(
       if (entry.name.startsWith('.')) continue;
       
       if (entry.isDirectory()) {
-        items.push(entry.name + '/');
+        const nodePath = path.join(currentPath, entry.name);
+        const config = readNodeConfig(nodePath);
+        let suffix = '/';
+        
+        if (config?.status === 'done') suffix = '/ [DONE]';
+        else if (config?.status === 'blocked') suffix = '/ [BLOCKED]';
+        else if (config?.isBoss) suffix = '/ [BOSS]';
+        
+        items.push(entry.name + suffix);
       } else {
         items.push(entry.name);
       }
@@ -348,7 +707,6 @@ export async function processCommand(
   if (command === 'tree') {
     const showFiles = parts.includes('-A') || parts.includes('--all');
     
-    // Parse depth: --depth=N or -d N
     let maxDepth = 10;
     const depthFlag = parts.find(p => p.startsWith('--depth='));
     if (depthFlag) {
@@ -360,20 +718,18 @@ export async function processCommand(
       }
     }
     
-    const treeLines = getTree(currentPath, '', true, maxDepth, 0, showFiles);
+    const treeLines = getTreeWithStatus(currentPath, '', true, maxDepth, 0, showFiles);
     if (treeLines.length === 0) {
       return wrapResult({ output: 'No items found.' });
     }
     return wrapResult({ output: treeLines.join('\n') });
   }
   
-  // Handle navigation without 'cd' command (.., ..., ...., etc)
+  // Handle navigation without 'cd' command
   if (/^\.{2,}$/.test(command)) {
-    // Count dots: .. = 1 level, ... = 2 levels, .... = 3 levels, etc
     const levels = command.length - 1;
     let targetPath = currentPath;
     
-    // Already at root?
     if (targetPath === config.storagePath) {
       return { output: 'Already at root.' };
     }
@@ -381,14 +737,12 @@ export async function processCommand(
     for (let i = 0; i < levels; i++) {
       const parentPath = path.dirname(targetPath);
       
-      // Stop at storage root
       if (targetPath === config.storagePath || parentPath.length < config.storagePath.length) {
         break;
       }
       
       targetPath = parentPath;
       
-      // If we reached root, stop
       if (targetPath === config.storagePath) {
         break;
       }
@@ -455,7 +809,6 @@ export async function processCommand(
       fs.renameSync(sourcePath, destPath);
       return { output: `Moved: ${source} -> ${dest}` };
     } catch (error: any) {
-      // If rename fails (cross-device), copy then delete
       try {
         copyRecursive(sourcePath, destPath);
         fs.rmSync(sourcePath, { recursive: true, force: true });
@@ -469,7 +822,6 @@ export async function processCommand(
   if (command === 'open') {
     const { exec } = require('child_process');
     
-    // open or open . - open current folder in system file manager
     if (parts.length < 2 || parts[1] === '.') {
       exec(`open "${currentPath}"`);
       return { output: `Opening: ${currentPath}` };
@@ -478,18 +830,15 @@ export async function processCommand(
     const name = parts.slice(1).join(' ');
     const targetPath = path.join(currentPath, name);
     
-    // Check if target exists
     if (fs.existsSync(targetPath)) {
       const stat = fs.statSync(targetPath);
       
       if (stat.isDirectory()) {
-        // It's a folder, open in file manager
         exec(`open "${targetPath}"`);
         return { output: `Opening: ${targetPath}` };
       }
       
       if (stat.isFile()) {
-        // It's a file, show its content (supports | pbcopy)
         const content = fs.readFileSync(targetPath, 'utf-8');
         return wrapResult({ output: content });
       }
@@ -545,12 +894,10 @@ export async function processCommand(
     
     const target = parts.slice(1).join(' ');
     
-    // Handle cd .., cd ..., cd ...., etc
     if (/^\.{2,}$/.test(target)) {
       const levels = target.length - 1;
       let targetPath = currentPath;
       
-      // Already at root?
       if (targetPath === config.storagePath) {
         return { output: 'Already at root.' };
       }
@@ -558,14 +905,12 @@ export async function processCommand(
       for (let i = 0; i < levels; i++) {
         const parentPath = path.dirname(targetPath);
         
-        // Stop at storage root
         if (targetPath === config.storagePath || parentPath.length < config.storagePath.length) {
           break;
         }
         
         targetPath = parentPath;
         
-        // If we reached root, stop
         if (targetPath === config.storagePath) {
           break;
         }
@@ -574,14 +919,12 @@ export async function processCommand(
       return { newPath: targetPath, output: '' };
     }
     
-    // Handle paths like "cd bank/account" or "cd ../other"
     if (target.includes('/')) {
       let targetPath = currentPath;
       const pathParts = target.split('/');
       
       for (const part of pathParts) {
         if (/^\.{2,}$/.test(part)) {
-          // Handle .., ..., ...., etc in path
           const levels = part.length - 1;
           for (let i = 0; i < levels; i++) {
             if (targetPath === config.storagePath) break;
@@ -656,121 +999,69 @@ Storage:      ${config.storagePath}
   
   if (command === 'help') {
     return wrapResult({
-      output: `Commands:
-  init                  - Initialize rlc (first time setup)
-  ls                    - List all schemas, todos, and notes
-  tree                  - Show directory tree structure
-  tree -A               - Show tree with files
-  tree --depth=N        - Limit tree depth (e.g., --depth=2)
-  map                   - Dungeon map visualization
-  cd <node>             - Navigate into a node
-  cd ..                 - Go back to parent
-  pwd                   - Show current path
-  open                  - Open current folder in Finder
-  open <folder>         - Open specific folder in Finder
-  mkdir <name>          - Create new folder
-  cp <src> <dest>       - Copy file or folder
-  mv <src> <dest>       - Move/rename file or folder
-  rm <name>             - Delete file
-  rm -rf <name>         - Delete folder recursively
-  config                - Show configuration
-  config:apiKey=<key>   - Set API key
-  v, version            - Show version
-  <description>         - Create schema/todo (AI generates preview)
-  save                  - Save pending schema to disk
-  cancel                - Discard pending schema
-  clean                 - Show items to delete in current folder
-  clean --yes           - Delete all items in current folder
-  exit/quit             - Exit the program
+      output: `
+=== ROGUELIKE CLI ===
+
+Navigation:
+  ls                    List tasks and files
+  tree                  Show task tree with status
+  tree -A               Include files
+  tree --depth=N        Limit tree depth
+  cd <task>             Navigate into task
+  cd .., ...            Go back 1 or 2 levels
+  pwd                   Show current path
+  open                  Open folder in Finder
+
+Task Management:
+  mkdir <name>          Create new task
+  done                  Mark current task as completed (recursive)
+  deadline <date>       Set deadline (today, tomorrow, +3d, Jan 15)
+  boss                  Toggle boss/milestone status (3x XP)
+  block [reason]        Mark task as blocked
+  unblock               Remove blocked status
+  status                Show current task details
+
+File Operations:
+  cp <src> <dest>       Copy file or folder
+  mv <src> <dest>       Move/rename
+  rm <name>             Delete file
+  rm -rf <name>         Delete folder
+
+Gamification:
+  stats                 Show XP, level, streaks
+  achievements          Show achievement list
+  map                   Dungeon map view
+  map --ai              AI-generated dungeon map
+
+Schema Generation:
+  <description>         AI generates todo/schema preview
+  save                  Save pending schema
+  cancel                Discard pending schema
+
+Utility:
+  init                  Setup wizard
+  config                Show settings
+  clean --yes           Clear current folder
+  v, version            Show version
+  help                  This help
+  exit, quit            Exit
 
 Clipboard:
-  ls | pbcopy           - Copy output to clipboard (macOS)
-  tree | pbcopy         - Works with any command
-  config | copy         - Alternative for Windows
+  <cmd> | pbcopy        Copy output (macOS)
+  <cmd> | clip          Copy output (Windows)
 
-Workflow:
-  1. Type description (e.g., "todo: deploy app")
-  2. AI generates schema preview
-  3. Refine with more instructions if needed
-  4. Type "save" to save or "cancel" to discard
+Deadlines:
+  deadline today        Due today
+  deadline tomorrow     Due tomorrow
+  deadline +3d          Due in 3 days
+  deadline Jan 15       Due on date
 
-Examples:
-
-  > todo opening company in delaware
-
-  ┌─ TODO opening company in delaware ───────────────────────────┐
-  │                                                               │
-  ├── register business name                                     │
-  ├── file incorporation papers                                  │
-  ├── get EIN number                                             │
-  └── Branch: legal                                               │
-      └── open business bank account                             │
-  │                                                               │
-  └───────────────────────────────────────────────────────────────┘
-
-  > yandex cloud production infrastructure
-
-  ┌─────────────────────────────────────────────────────────────┐
-  │                  Yandex Cloud                               │
-  │                                                             │
-  │  ┌──────────────────┐      ┌──────────────────┐           │
-  │  │ back-fastapi     │      │ admin-next       │           │
-  │  │ (VM)             │      │ (VM)             │           │
-  │  └────────┬─────────┘      └──────────────────┘           │
-  │           │                                                 │
-  │           ├──────────────────┬─────────────────┐           │
-  │           │                  │                 │           │
-  │  ┌────────▼────────┐  ┌─────▼──────┐   ┌──────▼────────┐  │
-  │  │   PostgreSQL    │  │   Redis    │   │  Cloudflare   │  │
-  │  │  (Existing DB)  │  │  Cluster   │   │  R2 Storage   │  │
-  │  └─────────────────┘  └────────────┘   └───────────────┘  │
-  └─────────────────────────────────────────────────────────────┘
-
-  > architecture production redis web application
-
-  ┌─ Architecture production redis web application ────────────┐
-  │                                                               │
-  ├── load-balancer                                               │
-  ├── web-servers                                                 │
-  │   ├── app-server-1                                            │
-  │   ├── app-server-2                                            │
-  │   └── app-server-3                                            │
-  ├── redis                                                       │
-  │   ├── cache-cluster                                           │
-  │   └── session-store                                           │
-  └── database                                                    │
-      ├── postgres-primary                                        │
-      └── postgres-replica                                        │
-  │                                                               │
-  └───────────────────────────────────────────────────────────────┘
-
-  > kubernetes cluster with clusters postgres and redis
-
-  ┌─────────────────────────────────────────────────────────────┐
-  │         Kubernetes cluster with clusters postgres          │
-  │                                                             │
-  │  ┌──────────────┐      ┌──────────────┐                  │
-  │  │   postgres   │      │    redis     │                  │
-  │  │              │      │              │                  │
-  │  │ primary-pod  │      │ cache-pod-1  │                  │
-  │  │ replica-pod-1│      │ cache-pod-2  │                  │
-  │  │ replica-pod-2│      │              │                  │
-  │  └──────┬───────┘      └──────┬───────┘                  │
-  │         │                      │                           │
-  │         └──────────┬───────────┘                           │
-  │                    │                                         │
-  │            ┌───────▼────────┐                              │
-  │            │ worker-zones   │                              │
-  │            │   zone-1       │                              │
-  │            │   zone-2       │                              │
-  │            └────────────────┘                              │
-  └─────────────────────────────────────────────────────────────┘
-
-www.rlc.rocks`
+www.rlc.rocks
+`.trim()
     });
   }
   
-  // Save command - save pending schema/todo
+  // Save command
   if (command === 'save') {
     if (!sessionState.pending) {
       return wrapResult({ output: 'Nothing to save. Create a schema first.' });
@@ -780,17 +1071,14 @@ www.rlc.rocks`
     const safeName = pending.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     
     if (pending.format === 'tree') {
-      // Create folder structure from tree ASCII art
       const rootPath = path.join(currentPath, safeName);
       createFoldersFromTree(rootPath, pending.content);
       
-      // Clear session
       sessionState.pending = null;
       sessionState.history = [];
       
       return wrapResult({ output: `Created todo folder: ${safeName}/` });
     } else {
-      // Save as .rlc.schema file
       const schemaPath = saveSchemaFile(
         currentPath,
         pending.title,
@@ -798,7 +1086,6 @@ www.rlc.rocks`
       );
       const filename = path.basename(schemaPath);
       
-      // Clear session
       sessionState.pending = null;
       sessionState.history = [];
       
@@ -806,7 +1093,7 @@ www.rlc.rocks`
     }
   }
   
-  // Cancel command - discard pending schema
+  // Cancel command
   if (command === 'cancel') {
     if (!sessionState.pending) {
       return wrapResult({ output: 'Nothing to cancel.' });
@@ -818,7 +1105,7 @@ www.rlc.rocks`
     return wrapResult({ output: 'Discarded pending schema.' });
   }
   
-  // Clean command - clear current directory
+  // Clean command
   if (command === 'clean') {
     const entries = fs.readdirSync(currentPath);
     const toDelete = entries.filter(e => !e.startsWith('.'));
@@ -827,7 +1114,6 @@ www.rlc.rocks`
       return wrapResult({ output: 'Directory is already empty.' });
     }
     
-    // Check for --yes flag to skip confirmation
     if (!parts.includes('--yes') && !parts.includes('-y')) {
       return wrapResult({ 
         output: `Will delete ${toDelete.length} items:\n${toDelete.join('\n')}\n\nRun "clean --yes" to confirm.` 
@@ -842,10 +1128,9 @@ www.rlc.rocks`
     return wrapResult({ output: `Deleted ${toDelete.length} items.` });
   }
   
-  // AI generation - store in pending, don't save immediately
+  // AI generation
   const fullInput = cleanInput;
   
-  // Add user message to history
   sessionState.history.push({ role: 'user', content: fullInput });
   
   const schema = await generateSchemaWithAI(fullInput, config, signal, sessionState.history);
@@ -855,7 +1140,6 @@ www.rlc.rocks`
   }
   
   if (schema) {
-    // Store in pending
     sessionState.pending = {
       title: schema.title,
       content: schema.content,
@@ -863,7 +1147,6 @@ www.rlc.rocks`
       tree: schema.tree
     };
     
-    // Add assistant response to history
     sessionState.history.push({ role: 'assistant', content: schema.content });
     
     const safeName = schema.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');

@@ -1,9 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export type NodeStatus = 'open' | 'done' | 'blocked';
+
 export interface NodeConfig {
   name: string;
+  status: NodeStatus;
   deadline?: string;
+  completedAt?: string;
+  xp: number;
+  isBoss?: boolean;
+  blockedBy?: string[];
   branch?: string;
   zone?: string;
   description?: string;
@@ -23,13 +30,19 @@ export function readNodeConfig(nodePath: string): NodeConfig | null {
   
   try {
     const data = fs.readFileSync(configPath, 'utf-8');
-    return JSON.parse(data);
+    const config = JSON.parse(data);
+    // Ensure defaults for older configs
+    return {
+      status: 'open',
+      xp: 10,
+      ...config,
+    };
   } catch {
     return null;
   }
 }
 
-export function writeNodeConfig(nodePath: string, config: NodeConfig): void {
+export function writeNodeConfig(nodePath: string, config: Partial<NodeConfig>): void {
   if (!fs.existsSync(nodePath)) {
     fs.mkdirSync(nodePath, { recursive: true });
   }
@@ -38,6 +51,9 @@ export function writeNodeConfig(nodePath: string, config: NodeConfig): void {
   const existing = readNodeConfig(nodePath);
   
   const updated: NodeConfig = {
+    name: config.name || existing?.name || path.basename(nodePath),
+    status: config.status ?? existing?.status ?? 'open',
+    xp: config.xp ?? existing?.xp ?? 10,
     ...existing,
     ...config,
     updatedAt: new Date().toISOString(),
@@ -55,6 +71,8 @@ export function createNode(
     branch?: string;
     zone?: string;
     description?: string;
+    isBoss?: boolean;
+    xp?: number;
     metadata?: Record<string, any>;
   }
 ): string {
@@ -67,7 +85,10 @@ export function createNode(
   
   const config: NodeConfig = {
     name,
+    status: 'open',
+    xp: options?.xp || 10,
     deadline: options?.deadline,
+    isBoss: options?.isBoss,
     branch: options?.branch,
     zone: options?.zone,
     description: options?.description,
@@ -79,6 +100,14 @@ export function createNode(
   writeNodeConfig(nodePath, config);
   
   return nodePath;
+}
+
+// Calculate XP based on depth (deeper = more XP)
+export function calculateXP(depth: number, isBoss: boolean = false): number {
+  const baseXP = 10;
+  const depthBonus = depth * 5;
+  const bossMultiplier = isBoss ? 3 : 1;
+  return (baseXP + depthBonus) * bossMultiplier;
 }
 
 // Save schema content to .rlc.schema file
@@ -96,6 +125,23 @@ export function saveSchemaFile(dirPath: string, filename: string, content: strin
   fs.writeFileSync(schemaPath, content, 'utf-8');
   
   return schemaPath;
+}
+
+// Save map content to .rlc.map file
+export function saveMapFile(dirPath: string, filename: string, content: string): string {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+  
+  const safeName = filename
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  
+  const mapPath = path.join(dirPath, `${safeName}.rlc.map`);
+  fs.writeFileSync(mapPath, content, 'utf-8');
+  
+  return mapPath;
 }
 
 // Read schema file

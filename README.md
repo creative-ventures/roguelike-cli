@@ -19,34 +19,19 @@
 
 ## What is this?
 
-**A new format for notes, schemas, and todo lists — where every task is a folder.**
+**A gamified task manager where every task is a folder and every project is a dungeon.**
 
-Instead of flat text files, your tasks become a **file system tree**. Nested tasks = nested folders. You can:
+Instead of flat text files, your tasks become a **file system tree**. Nested tasks = nested folders. Complete tasks to earn XP, level up, and unlock achievements.
+
+## Features
 
 - **Navigate** your todos like directories (`cd`, `ls`, `tree`)
-- **Attach files** directly to tasks (just put them in the folder)
-- **Track dependencies** and blockers between tasks
-- **Generate beautiful visualizations** — trees, block diagrams, and dungeon maps
+- **Track progress** with XP, levels, and streaks
+- **Earn achievements** for completing tasks
+- **Mark milestones** as boss fights (3x XP)
+- **Set deadlines** with human-readable dates
+- **Generate visualizations** - trees, block diagrams, dungeon maps
 - Let **AI help** you structure complex projects
-
-## Why folders?
-
-```
-project/
-├── phase-1-research/
-│   ├── market-analysis/
-│   │   └── competitors.xlsx      <- attach files directly
-│   └── user-interviews/
-├── phase-2-development/
-│   ├── backend-api/
-│   ├── frontend-ui/
-│   └── database-schema/
-└── phase-3-launch/
-    ├── marketing/
-    └── deployment/
-```
-
-Your file manager becomes your task manager. Git tracks your progress. AI generates the structure.
 
 ## Install
 
@@ -55,234 +40,186 @@ npm i -g roguelike-cli
 rlc
 ```
 
-## Workflow
+## Quick Start
 
 ```
-> todo launch my startup
+> todo launch startup
 
-├── Research
+├── Research [BOSS]
 │   ├── Market analysis
-│   ├── Competitor research
 │   └── User interviews
 ├── Development
-│   ├── MVP features
-│   ├── Backend API
+│   ├── Backend API [DUE: +7d]
 │   └── Frontend UI
-├── Launch
-│   ├── Marketing campaign
-│   └── Press release
-└── Growth
-    ├── Metrics tracking
-    └── User feedback
+└── Launch [MILESTONE]
+    └── Marketing campaign
 
-[Type "save" to create folder launch-my-startup/]
+[Type "save" to create folder launch-startup/]
 > save
-Created todo folder: launch-my-startup/
+Created todo folder: launch-startup/
 
-> cd launch-my-startup
-> tree
-├── research/
-│   ├── market-analysis/
-│   ├── competitor-research/
-│   └── user-interviews/
-├── development/
-│   ├── mvp-features/
-│   ├── backend-api/
-│   └── frontend-ui/
-├── launch/
-│   ├── marketing-campaign/
-│   └── press-release/
-└── growth/
-    ├── metrics-tracking/
-    └── user-feedback/
+> cd launch-startup/research
+> done
+
+=== TASK COMPLETED ===
+
+Tasks completed: 3
+Bosses defeated: 1
++45 XP
+
+*** LEVEL UP! ***
+You are now level 2!
+
+=== NEW ACHIEVEMENTS ===
+[x] First Blood: Complete your first task
+[x] Boss Slayer: Complete a boss task
 ```
 
-Now you can `cd development/backend-api` and drop your actual code files there!
+## Commands
 
-## Visualizations
+### Navigation
 
-### Tree View (default)
+| Command | Description |
+|---------|-------------|
+| `ls` | List tasks (shows status) |
+| `tree` | Task tree with deadlines |
+| `tree -A` | Include files |
+| `tree --depth=N` | Limit depth |
+| `cd <task>` | Enter task |
+| `..`, `...` | Go up 1 or 2 levels |
+| `pwd` | Current path |
+| `open` | Open in Finder |
+
+### Task Management
+
+| Command | Description |
+|---------|-------------|
+| `done` | Complete task (recursive, earns XP) |
+| `deadline <date>` | Set deadline |
+| `boss` | Toggle boss status (3x XP) |
+| `block [reason]` | Mark as blocked |
+| `unblock` | Remove blocked status |
+| `status` | Show task details |
+
+### Gamification
+
+| Command | Description |
+|---------|-------------|
+| `stats` | XP, level, streaks |
+| `achievements` | Achievement list |
+| `map` | Dungeon map view |
+| `map --ai` | AI-generated dungeon |
+
+### File Operations
+
+| Command | Description |
+|---------|-------------|
+| `mkdir <name>` | Create task |
+| `cp <src> <dst>` | Copy |
+| `mv <src> <dst>` | Move/rename |
+| `rm <name>` | Delete file |
+| `rm -rf <name>` | Delete folder |
+
+### AI Generation
+
+| Command | Description |
+|---------|-------------|
+| `<description>` | AI generates preview |
+| `save` | Save pending schema |
+| `cancel` | Discard |
+
+## Deadlines
 
 ```
-├── Phase 1: Setup
-│   ├── Create repository
-│   ├── Setup CI/CD
-│   └── Configure environment
-├── Phase 2: Development
-│   ├── Backend API
-│   └── Frontend UI
-└── Phase 3: Deploy
+> deadline today       # Due today
+> deadline tomorrow    # Due tomorrow
+> deadline +3d         # Due in 3 days
+> deadline Jan 15      # Due on date
 ```
 
-### Block Diagram (for architecture)
+Tree shows deadlines:
+
+```
+├── Backend API/ [BOSS] [3d left]
+│   ├── Database/ [DONE]
+│   └── Endpoints/ [OVERDUE 2d]
+└── Frontend/ [tomorrow]
+```
+
+## XP System
+
+- Base XP: 10 per task
+- Depth bonus: +5 XP per nesting level
+- Boss multiplier: 3x XP
+
+| Level | XP Required |
+|-------|-------------|
+| 1 | 0 |
+| 2 | 100 |
+| 3 | 150 |
+| 5 | 337 |
+| 10 | 3,844 |
+
+## Achievements
+
+| Achievement | Description |
+|-------------|-------------|
+| First Blood | Complete first task |
+| Getting Started | Complete 10 tasks |
+| Productive | Complete 50 tasks |
+| Centurion | Complete 100 tasks |
+| Deep Diver | Complete task at depth 5+ |
+| Boss Slayer | Complete a boss task |
+| Boss Hunter | Defeat 5 bosses |
+| Speedrunner | Complete task same day |
+| On a Roll | 3 day streak |
+| Streak Master | 7 day streak |
+| Unstoppable | 30 day streak |
+| Adventurer | Reach level 5 |
+| Veteran | Reach level 10 |
+| Legend | Reach level 25 |
+
+## Dungeon Map
+
+```
+> map
+
+  ###########################################
+  #                    #                    #
+  #   [Research]       #   [Development]    #
+  #   * Market         +---* Backend        #
+  #   x Users          #   @ Deploy BOSS    #
+  #                    #                    #
+  ##########+############+##################
+           |            |
+  ##########+############+##################
+  #                                         #
+  #            [Launch]                     #
+  #            * Marketing                  #
+  #            @ SHIP IT! [BOSS]            #
+  #                                         #
+  ###########################################
+
+Legend: * Task  x Done  @ Boss  ! Blocked  + Door
+```
+
+Use `map --ai` for creative AI-generated layouts.
+
+## Block Diagrams
 
 ```
 > schema kubernetes cluster
 
 ┌─────────────────────────────────────────────────────────────┐
-│                  Kubernetes Cluster                         │
-│                                                             │
-│  ┌──────────────┐      ┌──────────────┐                    │
-│  │   postgres   │      │    redis     │                    │
-│  │              │      │              │                    │
-│  │ primary-pod  │      │ cache-pod-1  │                    │
-│  │ replica-pod  │      │ cache-pod-2  │                    │
-│  └──────┬───────┘      └──────┬───────┘                    │
-│         └──────────┬───────────┘                            │
-│                    ▼                                        │
-│            ┌───────────────┐                                │
-│            │ worker-nodes  │                                │
-│            └───────────────┘                                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Dungeon Map View
-
-Visualize your project as a dungeon map. Each room is a task, corridors show dependencies.
-
-```
-> map
-
-  ████████████████████████████████████████
-  █                    █                 █
-  █   [Research]       █   [Development] █
-  █   * Market         █   * Backend     █
-  █   * Users    ──────+───* Frontend    █
-  █                    █   * Database    █
-  █████████+███████████████████+██████████
-           │                   │
-  █████████+███████████████████+██████████
-  █                    █                 █
-  █   [Launch]         █   [Growth]      █
-  █   * Marketing      █   * Metrics     █
-  █   * Press    ──────+───* Feedback    █
-  █   @ BOSS: Ship it! █                 █
-  █                    █                 █
-  ████████████████████████████████████████
-
-Legend: * Task  @ Milestone  + Door  █ Wall
-```
-
-## Gamification (Roadmap)
-
-- **XP System** — Earn experience for completing tasks
-- **Achievements** — "First Blood", "100 Tasks", "Deep Nesting"
-- **Boss Tasks** — Major milestones as boss fights
-- **Dungeon Maps** — Explore your project as a roguelike dungeon
-- **Stats** — Track velocity, streaks, completion rates
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `ls` | List tasks and files |
-| `tree` | Show task tree |
-| `tree -A` | Include files |
-| `map` | Dungeon map view |
-| `cd <task>` | Enter task |
-| `..` | Go back |
-| `mkdir <name>` | Create task |
-| `open` | Open in Finder |
-| `cp`, `mv`, `rm` | File operations |
-| `config` | Settings |
-| `help` | Examples |
-| `v`, `version` | Show version |
-
-## AI Integration
-
-Just describe what you need:
-
-```
-> todo bake cookies
-
-├── Prep
-│   ├── Gather ingredients
-│   └── Preheat oven
-├── Mix
-│   ├── Cream butter + sugar
-│   └── Add flour
-├── Bake (8-10 min)
-└── Cool & store
-
-> add deadline tomorrow for Bake
-> add blocker "buy flour" for Mix
-> shorter
-> more detailed
-> save
-```
-
-AI understands context and refines until you're happy.
-
-## Examples
-
-### Software Project
-
-```
-> todo build saas app
-
-├── Planning
-│   ├── Define MVP scope
-│   ├── Create wireframes
-│   └── Tech stack decision
-├── Backend
-│   ├── Database schema
-│   ├── API endpoints
-│   ├── Authentication
-│   └── Payment integration
-├── Frontend
-│   ├── Components library
-│   ├── Pages
-│   └── State management
-├── DevOps
-│   ├── CI/CD pipeline
-│   ├── Staging environment
-│   └── Production deployment
-└── Launch
-    ├── Beta testing
-    ├── Marketing site
-    └── Product Hunt launch
-```
-
-### Life Goals
-
-```
-> todo learn japanese
-
-├── Basics (Month 1-2)
-│   ├── Hiragana
-│   ├── Katakana
-│   └── Basic grammar
-├── Foundation (Month 3-6)
-│   ├── Kanji (500)
-│   ├── Vocabulary (2000 words)
-│   └── Genki textbook
-├── Intermediate (Month 6-12)
-│   ├── JLPT N4 prep
-│   ├── Reading practice
-│   └── Conversation partner
-└── Advanced
-    ├── JLPT N3
-    ├── Watch anime without subs
-    └── Visit Japan
-```
-
-### Infrastructure
-
-```
-> schema cloud infrastructure
-
-┌─────────────────────────────────────────────────────────────┐
-│                     Production                              │
-│                                                             │
-│  ┌──────────────────┐      ┌──────────────────┐           │
-│  │ Load Balancer    │      │ CDN              │           │
-│  └────────┬─────────┘      └──────────────────┘           │
-│           │                                                 │
-│  ┌────────▼────────┐  ┌────────────┐   ┌────────────────┐ │
-│  │   App Servers   │  │   Redis    │   │   PostgreSQL   │ │
-│  │   (3 replicas)  │──│   Cache    │   │   (Primary +   │ │
-│  └─────────────────┘  └────────────┘   │    Replica)    │ │
-│                                         └────────────────┘ │
+│                     Kubernetes Cluster                       │
+│                                                              │
+│  ┌──────────────────┐      ┌──────────────────┐            │
+│  │   Control Plane  │      │   Worker Nodes   │            │
+│  └────────┬─────────┘      └────────┬─────────┘            │
+│           └──────────┬───────────────┘                      │
+│  ┌──────────────────┐│┌──────────────────┐                 │
+│  │    PostgreSQL    │││     Redis        │                 │
+│  └──────────────────┘│└──────────────────┘                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -291,6 +228,15 @@ AI understands context and refines until you're happy.
 ```
 > tree | pbcopy     # macOS
 > tree | clip       # Windows
+> ls | copy         # Alternative
+```
+
+## Configuration
+
+```
+> init              # Setup wizard
+> config            # Show settings
+> config:apiKey=sk-... # Set API key
 ```
 
 ## Website

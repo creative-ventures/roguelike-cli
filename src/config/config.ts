@@ -12,7 +12,7 @@ export interface Config {
 }
 
 const CONFIG_FILE = path.join(os.homedir(), '.rlc', 'config.json');
-const DEFAULT_STORAGE = path.join(os.homedir(), '.rlc', 'notes');
+const DEFAULT_STORAGE = path.join(os.homedir(), '.rlc', 'workspace');
 
 export async function initConfig(): Promise<Config | null> {
   const configDir = path.dirname(CONFIG_FILE);

@@ -91,7 +91,7 @@ async function initCommand() {
     const existingConfig = await (0, config_1.initConfig)();
     const oldStoragePath = existingConfig?.storagePath;
     // 1. Root directory
-    const defaultRoot = path.join(os.homedir(), '.rlc', 'notes');
+    const defaultRoot = path.join(os.homedir(), '.rlc', 'workspace');
     const rootDirAnswer = await question(`Root directory for notes [${defaultRoot}]: `);
     const rootDir = rootDirAnswer.trim() || defaultRoot;
     // Check if we need to migrate data

@@ -62,7 +62,7 @@ export async function initCommand(): Promise<void> {
   const oldStoragePath = existingConfig?.storagePath;
 
   // 1. Root directory
-  const defaultRoot = path.join(os.homedir(), '.rlc', 'notes');
+  const defaultRoot = path.join(os.homedir(), '.rlc', 'workspace');
   const rootDirAnswer = await question(`Root directory for notes [${defaultRoot}]: `);
   const rootDir = rootDirAnswer.trim() || defaultRoot;
 

@@ -41,7 +41,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const CONFIG_FILE = path.join(os.homedir(), '.rlc', 'config.json');
-const DEFAULT_STORAGE = path.join(os.homedir(), '.rlc', 'notes');
+const DEFAULT_STORAGE = path.join(os.homedir(), '.rlc', 'workspace');
 async function initConfig() {
     const configDir = path.dirname(CONFIG_FILE);
     if (!fs.existsSync(configDir)) {

@@ -1,6 +1,6 @@
 {
   "name": "roguelike-cli",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "AI-powered interactive terminal for creating schemas and todo lists",
   "main": "dist/index.js",
   "bin": {

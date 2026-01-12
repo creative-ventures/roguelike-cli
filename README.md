@@ -19,8 +19,6 @@
 
 **Turn your backlog into a dungeon crawl.** Roguelike CLI is a terminal-based task manager that transforms productivity into an RPG experience. Complete quests, level up, and conquer your goals.
 
-**Open Source:** [GitHub](https://github.com/creative-ventures/roguelike-cli) | [npm](https://www.npmjs.com/package/roguelike-cli)
-
 ## Features
 
 - **RPG Engine** — Tasks are quests. Completing them earns XP, unlocks achievements, and levels you up.
@@ -245,6 +243,10 @@ grok-beta
 ## Website
 
 **https://www.rlc.rocks**
+
+**Open Source:** [GitHub](https://github.com/creative-ventures/roguelike-cli) | [npm](https://www.npmjs.com/package/roguelike-cli)
+
+Designed by [Creative Ventures](https://www.cv.rocks)
 
 ## License
 

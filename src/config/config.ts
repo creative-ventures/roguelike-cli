@@ -13,7 +13,18 @@ export interface Config {
   rulesPreset?: string;
 }
 
-// Preset rules for different themes
+// Supported models for validation
+export const SUPPORTED_MODELS = [
+  'claude-sonnet-4-20250514',
+  'claude-opus-4-20250514',
+  'gpt-4o',
+  'gpt-4-turbo',
+  'gemini-3-pro',
+  'gemini-2.0-flash',
+  'grok-beta',
+];
+
+// Preset rules
 export const RULES_PRESETS: Record<string, { name: string; rules: string }> = {
   default: {
     name: 'Default (No theme)',

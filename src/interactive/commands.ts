@@ -566,10 +566,10 @@ export async function processCommand(
     return wrapResult({ output });
   }
   
-  // Deadline command
-  if (command === 'deadline') {
+  // Deadline command (dl as alias)
+  if (command === 'deadline' || command === 'dl') {
     if (parts.length < 2) {
-      return wrapResult({ output: 'Usage: deadline <date>\nExamples: deadline today, deadline tomorrow, deadline +3d, deadline Jan 15' });
+      return wrapResult({ output: 'Usage: deadline <date> (or dl <date>)\nExamples: dl today, dl +3d, deadline Jan 15' });
     }
     
     const dateStr = parts.slice(1).join(' ');
@@ -1107,22 +1107,29 @@ export async function processCommand(
   }
   
   if (command === 'config') {
-    const { updateConfig, RULES_PRESETS } = await import('../config/config');
+    const { updateConfig, SUPPORTED_MODELS } = await import('../config/config');
     
-    // Check for flags
-    const keyFlag = parts.find(p => p.startsWith('-k=') || p.startsWith('--key='));
-    const modelFlag = parts.find(p => p.startsWith('-m=') || p.startsWith('--model='));
-    const rulesFlag = parts.find(p => p.startsWith('-r=') || p.startsWith('--rules='));
-    const themeFlag = parts.find(p => p.startsWith('-t=') || p.startsWith('--theme='));
+    // Check for flags (uppercase short, lowercase long)
+    const keyFlag = parts.find(p => p.startsWith('-K=') || p.startsWith('--key='));
+    const modelFlag = parts.find(p => p.startsWith('-M=') || p.startsWith('--model='));
+    const rulesFlag = parts.find(p => p.startsWith('-R=') || p.startsWith('--rules='));
     
     if (keyFlag) {
       const value = keyFlag.split('=').slice(1).join('=');
+      if (!value) {
+        return wrapResult({ output: 'Error: API key cannot be empty' });
+      }
       updateConfig({ apiKey: value });
       return wrapResult({ output: 'API key updated.' });
     }
     
     if (modelFlag) {
       const value = modelFlag.split('=').slice(1).join('=');
+      if (!SUPPORTED_MODELS.includes(value)) {
+        return wrapResult({ 
+          output: `Error: Unknown model "${value}"\n\nSupported models:\n  ${SUPPORTED_MODELS.join('\n  ')}` 
+        });
+      }
       updateConfig({ model: value });
       return wrapResult({ output: `Model updated: ${value}` });
     }
@@ -1130,21 +1137,7 @@ export async function processCommand(
     if (rulesFlag) {
       const value = rulesFlag.split('=').slice(1).join('=');
       updateConfig({ rules: value, rulesPreset: 'custom' });
-      return wrapResult({ output: 'Custom rules updated.' });
-    }
-    
-    if (themeFlag) {
-      const value = themeFlag.split('=').slice(1).join('=').toLowerCase();
-      if (RULES_PRESETS[value]) {
-        updateConfig({ 
-          rules: RULES_PRESETS[value].rules, 
-          rulesPreset: value 
-        });
-        return wrapResult({ output: `Theme updated: ${RULES_PRESETS[value].name}` });
-      } else {
-        const themes = Object.keys(RULES_PRESETS).join(', ');
-        return wrapResult({ output: `Unknown theme. Available: ${themes}` });
-      }
+      return wrapResult({ output: 'Rules updated.' });
     }
     
     // Show config
@@ -1152,27 +1145,21 @@ export async function processCommand(
       ? config.apiKey.slice(0, 8) + '...' + config.apiKey.slice(-4)
       : '(not set)';
     
-    const themeName = config.rulesPreset 
-      ? (RULES_PRESETS[config.rulesPreset]?.name || 'Custom')
-      : 'Default';
-    
     const rulesPreview = config.rules 
-      ? (config.rules.length > 50 ? config.rules.substring(0, 50) + '...' : config.rules)
-      : '(none)';
+      ? (config.rules.length > 60 ? config.rules.substring(0, 60) + '...' : config.rules)
+      : '(default)';
     
     const output = `
 Provider:     ${config.aiProvider}
 Model:        ${config.model || '(default)'}
 API Key:      ${maskedKey}
 Storage:      ${config.storagePath}
-Theme:        ${themeName}
 Rules:        ${rulesPreview}
 
 Set with flags:
-  config -k=<key>       Set API key
-  config -m=<model>     Set model
-  config -t=<theme>     Set theme (fantasy, space, starwars, western, cyberpunk, pirate)
-  config -r="<rules>"   Set custom rules
+  config -K=<key>       or --key=<key>
+  config -M=<model>     or --model=<model>
+  config -R="<rules>"   or --rules="<rules>"
 `.trim();
     
     return wrapResult({ output });
@@ -1187,49 +1174,50 @@ Navigation:
   ls                    List tasks and files
   tree [-A] [--depth=N] Show task tree
   cd <task>             Navigate into task
-  cd .., ...            Go back 1 or 2 levels
-  pwd                   Show current path
-  open                  Open folder in Finder
+  .., ...               Go up 1 or 2 levels
+  pwd                   Current path
+  open                  Open in Finder
 
-Task Management:
-  mkdir <name>          Create new task
-  done                  Complete task (earns XP)
+Tasks:
+  mkdir <name>          Create task
+  done                  Complete (earns XP)
   undo                  Undo last done
-  deadline <date>       Set deadline (today, +3d, Jan 15)
-  boss                  Toggle boss status (3x XP)
-  block [node]          Block by task or text
+  dl <date>             Set deadline (dl +3d, dl Jan 15)
+  boss                  Toggle boss (3x XP)
+  block [node]          Block by task
   unblock               Remove block
   status                Task details
-  check                 Upcoming deadlines
+  check                 Deadline alerts
 
 Gamification:
   stats                 XP, level, streaks
   achievements          Achievement list
-  map [--ai]            Dungeon map view
+  map                   Dungeon map
+  map --ai              AI-generated map
 
-Configuration:
+Rules (AI style presets):
+  Set via init or config -R="<rules>"
+  Presets: fantasy, space, starwars, western, cyberpunk, pirate
+
+Config:
   init                  Setup wizard
   config                Show settings
-  config -k=<key>       Set API key
-  config -m=<model>     Set model
-  config -t=<theme>     Set theme (fantasy, space, starwars, etc)
-  config -r="<rules>"   Custom AI rules
+  config -K=<key>       or --key=<key>
+  config -M=<model>     or --model=<model>
+  config -R="<rules>"   or --rules="<rules>"
 
-Themes:
-  default, fantasy, space, starwars, western, cyberpunk, pirate
+Files:
+  cp, mv, rm [-rf]      Standard operations
+  clean --yes           Clear folder
 
-File Operations:
-  cp, mv, rm [-rf]      Standard file operations
-  clean --yes           Clear current folder
-
-AI Generation:
-  <description>         AI generates preview
-  save                  Save to folders/file
+AI:
+  <description>         Generate preview
+  save                  Save to folders
   cancel                Discard
 
 Clipboard:
-  <cmd> | pbcopy        Copy to clipboard (macOS)
-  <cmd> | clip          Copy to clipboard (Windows)
+  <cmd> | pbcopy        macOS
+  <cmd> | clip          Windows
 
 www.rlc.rocks
 `.trim()

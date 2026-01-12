@@ -128,7 +128,7 @@ async function initCommand(existingRl) {
         const apiKeyInput = await question(rl, keyPrompt);
         const apiKey = apiKeyInput.trim() || existingApiKey;
         if (!apiKey) {
-            console.log('Warning: API key not set. You can set it later with: config -k <key>');
+            console.log('Warning: API key not set. You can set it later with: config -K=<key>');
         }
         else if (apiKeyInput.trim()) {
             console.log('API key saved');
@@ -136,8 +136,8 @@ async function initCommand(existingRl) {
         else {
             console.log('Using existing API key');
         }
-        // 4. Theme/Rules selection
-        console.log('\nSelect AI Theme (affects language style):');
+        // 4. Rules preset selection
+        console.log('\nSelect AI Rules (affects language style):');
         const presetKeys = Object.keys(config_1.RULES_PRESETS);
         presetKeys.forEach((key, index) => {
             console.log(`  ${index + 1}. ${config_1.RULES_PRESETS[key].name}`);
@@ -190,7 +190,7 @@ async function initCommand(existingRl) {
         console.log(`Root directory: ${rootDir}`);
         console.log(`AI Provider: ${selectedProvider.name}`);
         console.log(`Model: ${selectedProvider.model}`);
-        console.log(`Theme: ${config_1.RULES_PRESETS[selectedPreset]?.name || 'Custom'}\n`);
+        console.log(`Rules: ${config_1.RULES_PRESETS[selectedPreset]?.name || 'Custom'}\n`);
     }
     finally {
         if (shouldCloseRl) {

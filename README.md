@@ -24,11 +24,7 @@
 - **RPG Engine** — Tasks are quests. Completing them earns XP, unlocks achievements, and levels you up.
 - **AI Game Master** — Integrated AI helps decompose complex tasks and generates structured plans.
 - **Local-First** — Your data stays on your machine in simple folders and JSON files.
-- **Themeable** — Choose your adventure style: Fantasy, Space Opera, Star Wars, Cyberpunk, and more.
-
-## Why Roguelike CLI?
-
-Most task managers are boring. We make deep work addictive by applying proven RPG mechanics to your daily workflow.
+- **Customizable Rules** — Choose adventure style: Fantasy, Space Opera, Star Wars, Cyberpunk, and more.
 
 ## Install
 
@@ -36,27 +32,6 @@ Most task managers are boring. We make deep work addictive by applying proven RP
 npm i -g roguelike-cli
 rlc
 ```
-
-## Folder Structure
-
-Every task is a folder. You can drop files directly into task folders — designs, docs, code, anything. Your file manager becomes your task manager.
-
-```
-my-startup/
-├── research/
-│   ├── market-analysis/
-│   │   └── competitors.xlsx    <- attached file
-│   └── user-interviews/
-│       └── notes.md            <- attached file
-├── development/
-│   ├── backend-api/
-│   │   └── spec.yaml           <- attached file
-│   └── frontend-ui/
-└── launch/
-    └── marketing/
-```
-
-Navigate with `cd`, view with `tree`, open in Finder with `open`. It's just folders.
 
 ## Quick Start
 
@@ -88,41 +63,33 @@ Created: launch-my-startup/
 [x] Boss Slayer: Defeat a boss
 ```
 
-## Configuration
+## Folder Structure
 
-Run `init` to set up, or use `config` flags:
+Every task is a folder. You can drop files directly into task folders — designs, docs, code, anything. Your file manager becomes your task manager.
 
 ```
-> config
-
-Provider:     claude
-Model:        claude-sonnet-4-20250514
-API Key:      sk-ant-a...xxxx
-Storage:      /Users/you/.rlc/workspace
-Theme:        Fantasy RPG
-Rules:        Use fantasy RPG language...
-
-Set with flags:
-  config -k=<key>       Set API key
-  config -m=<model>     Set model
-  config -t=<theme>     Set theme
-  config -r="<rules>"   Set custom rules
+my-startup/
+├── research/
+│   ├── market-analysis/
+│   │   └── competitors.xlsx    <- attached file
+│   └── user-interviews/
+│       └── notes.md            <- attached file
+├── development/
+│   ├── backend-api/
+│   │   └── spec.yaml           <- attached file
+│   └── frontend-ui/
+└── launch/
+    └── marketing/
 ```
 
-### Default Settings
+Navigate with `cd`, view with `tree`, open in Finder with `open`. It's just folders.
 
-| Setting | Default |
-|---------|---------|
-| Provider | Claude Sonnet 4.5 |
-| Storage | `~/.rlc/workspace` |
-| Theme | Default (no theme) |
+## Rules
 
-## Themes (Rules)
+Rules change how the AI speaks. Set during `init` or with `config -R="<rules>"`.
 
-Themes change how the AI speaks. Set with `config -t=<theme>` or during `init`.
-
-| Theme | Style |
-|-------|-------|
+| Preset | Style |
+|--------|-------|
 | `default` | Standard task manager language |
 | `fantasy` | Quests, dungeons, dragons, loot |
 | `space` | Missions, starships, commanders |
@@ -134,10 +101,37 @@ Themes change how the AI speaks. Set with `config -t=<theme>` or during `init`.
 ### Custom Rules
 
 ```
-> config -r="Speak like a medieval knight. Tasks are 'duties'. Use 'huzzah' for success."
+> config -R="Speak like a medieval knight. Tasks are 'duties'. Use 'huzzah' for success."
 ```
 
 Or select "Custom" during `init` to enter your own rules.
+
+## Dungeon Map
+
+```
+> map
+
+  #########################################
+  #                   #                   #
+  #   [Research]      #   [Development]   #
+  #   x Analysis      +---* Backend       #
+  #   x Interviews    #   * Frontend      #
+  #                   #                   #
+  ##########+###########+#################
+            |           |
+  ##########+###########+#################
+  #                                       #
+  #            [Launch]                   #
+  #            * Marketing                #
+  #            @ SHIP IT! [BOSS]          #
+  #                                       #
+  #########################################
+
+  Legend: * Task  x Done  @ Boss  + Door
+
+> map --ai
+(AI generates creative dungeon layout based on your tasks)
+```
 
 ## Commands
 
@@ -158,7 +152,7 @@ Or select "Custom" during `init` to enter your own rules.
 |---------|-------------|
 | `done` | Complete task (earns XP) |
 | `undo` | Undo last done |
-| `deadline <date>` | Set deadline |
+| `dl <date>` | Set deadline (dl +3d, dl Jan 15) |
 | `boss` | Toggle boss (3x XP) |
 | `block [node]` | Block by task |
 | `unblock` | Remove block |
@@ -186,18 +180,24 @@ Or select "Custom" during `init` to enter your own rules.
 |---------|-------------|
 | `init` | Setup wizard |
 | `config` | View settings |
-| `config -k=<key>` | Set API key |
-| `config -m=<model>` | Set model |
-| `config -t=<theme>` | Set theme |
-| `config -r="<rules>"` | Custom rules |
+| `config -K=<key>` | or `--key=<key>` |
+| `config -M=<model>` | or `--model=<model>` |
+| `config -R="<rules>"` | or `--rules="<rules>"` |
+
+### Clipboard
+
+| Command | Description |
+|---------|-------------|
+| `<cmd> \| pbcopy` | Copy to clipboard (macOS) |
+| `<cmd> \| clip` | Copy to clipboard (Windows) |
 
 ## Deadlines
 
 ```
-> deadline today       # Due today
-> deadline tomorrow    # Due tomorrow
-> deadline +3d         # In 3 days
-> deadline Jan 15      # Specific date
+> dl today         # Due today
+> dl tomorrow      # Due tomorrow
+> dl +3d           # In 3 days
+> deadline Jan 15  # Specific date
 ```
 
 Tree shows deadlines:
@@ -228,25 +228,16 @@ Tree shows deadlines:
 | Speedrunner | Same-day completion |
 | Streak Master | 7 day streak |
 
-## Dungeon Map
+## Supported Models
 
 ```
-> map
-
-  ###########################################
-  #                   #                     #
-  #   [Research]      #   [Development]     #
-  #   x Analysis      +---* Backend         #
-  #   x Interviews    #   @ Deploy BOSS     #
-  #                   #                     #
-  ##########+###########+###################
-```
-
-## Clipboard
-
-```
-> tree | pbcopy     # macOS
-> tree | clip       # Windows
+claude-sonnet-4-20250514 (default)
+claude-opus-4-20250514
+gpt-4o
+gpt-4-turbo
+gemini-3-pro
+gemini-2.0-flash
+grok-beta
 ```
 
 ## Website

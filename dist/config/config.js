@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RULES_PRESETS = void 0;
+exports.RULES_PRESETS = exports.SUPPORTED_MODELS = void 0;
 exports.initConfig = initConfig;
 exports.saveConfig = saveConfig;
 exports.getConfig = getConfig;
@@ -41,7 +41,17 @@ exports.updateConfig = updateConfig;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
-// Preset rules for different themes
+// Supported models for validation
+exports.SUPPORTED_MODELS = [
+    'claude-sonnet-4-20250514',
+    'claude-opus-4-20250514',
+    'gpt-4o',
+    'gpt-4-turbo',
+    'gemini-3-pro',
+    'gemini-2.0-flash',
+    'grok-beta',
+];
+// Preset rules
 exports.RULES_PRESETS = {
     default: {
         name: 'Default (No theme)',

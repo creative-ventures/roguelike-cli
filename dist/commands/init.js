@@ -63,7 +63,6 @@ function copyRecursive(src, dest) {
     }
 }
 async function initCommand(existingRl) {
-    // Create our own readline if not provided, or use existing one
     const rl = existingRl || readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -73,7 +72,6 @@ async function initCommand(existingRl) {
         console.log('\n╔═══════════════════════════════════════╗');
         console.log('║   ROGUELIKE CLI INITIALIZATION WIZARD ║');
         console.log('╚═══════════════════════════════════════╝\n');
-        // Get existing config if any
         const existingConfig = await (0, config_1.initConfig)();
         const oldStoragePath = existingConfig?.storagePath;
         // 1. Root directory
@@ -121,7 +119,7 @@ async function initCommand(existingRl) {
         const selectedIndex = parseInt(aiChoice.trim()) - 1 || 0;
         const selectedProvider = aiProviders[selectedIndex] || aiProviders[0];
         console.log(`Selected: ${selectedProvider.name} (${selectedProvider.model})`);
-        // 3. API Key - reuse existing if not provided
+        // 3. API Key
         const existingApiKey = existingConfig?.apiKey || '';
         const hasExistingKey = existingApiKey.length > 0;
         const keyPrompt = hasExistingKey
@@ -130,13 +128,46 @@ async function initCommand(existingRl) {
         const apiKeyInput = await question(rl, keyPrompt);
         const apiKey = apiKeyInput.trim() || existingApiKey;
         if (!apiKey) {
-            console.log('Warning: API key not set. You can set it later with config:apiKey=<key>');
+            console.log('Warning: API key not set. You can set it later with: config -k <key>');
         }
         else if (apiKeyInput.trim()) {
             console.log('API key saved');
         }
         else {
             console.log('Using existing API key');
+        }
+        // 4. Theme/Rules selection
+        console.log('\nSelect AI Theme (affects language style):');
+        const presetKeys = Object.keys(config_1.RULES_PRESETS);
+        presetKeys.forEach((key, index) => {
+            console.log(`  ${index + 1}. ${config_1.RULES_PRESETS[key].name}`);
+        });
+        console.log(`  ${presetKeys.length + 1}. Custom (enter your own rules)`);
+        const existingPreset = existingConfig?.rulesPreset || 'default';
+        const defaultPresetIndex = presetKeys.indexOf(existingPreset) + 1 || 1;
+        const themeChoice = await question(rl, `\nEnter choice [1-${presetKeys.length + 1}] (default: ${defaultPresetIndex}): `);
+        const themeIndex = parseInt(themeChoice.trim()) - 1;
+        let selectedRules = '';
+        let selectedPreset = 'default';
+        if (themeIndex >= 0 && themeIndex < presetKeys.length) {
+            selectedPreset = presetKeys[themeIndex];
+            selectedRules = config_1.RULES_PRESETS[selectedPreset].rules;
+            console.log(`Selected: ${config_1.RULES_PRESETS[selectedPreset].name}`);
+        }
+        else if (themeIndex === presetKeys.length) {
+            // Custom rules
+            console.log('\nEnter your custom rules for AI (how it should speak, what terms to use):');
+            console.log('Example: "Use pirate language. Tasks are treasure hunts. Be playful."');
+            const customRules = await question(rl, '\nYour rules: ');
+            selectedRules = customRules.trim();
+            selectedPreset = 'custom';
+            console.log('Custom rules saved');
+        }
+        else {
+            // Default
+            selectedPreset = existingConfig?.rulesPreset || 'default';
+            selectedRules = existingConfig?.rules || '';
+            console.log(`Keeping: ${config_1.RULES_PRESETS[selectedPreset]?.name || 'Default'}`);
         }
         // Save config
         const config = {
@@ -146,9 +177,10 @@ async function initCommand(existingRl) {
             storagePath: rootDir,
             currentPath: rootDir,
             model: selectedProvider.model,
+            rules: selectedRules,
+            rulesPreset: selectedPreset,
         };
         (0, config_1.saveConfig)(config);
-        // Ensure storage directory exists
         if (!fs.existsSync(rootDir)) {
             fs.mkdirSync(rootDir, { recursive: true });
         }
@@ -157,7 +189,8 @@ async function initCommand(existingRl) {
         console.log('╚═══════════════════════════════════════╝\n');
         console.log(`Root directory: ${rootDir}`);
         console.log(`AI Provider: ${selectedProvider.name}`);
-        console.log(`Model: ${selectedProvider.model}\n`);
+        console.log(`Model: ${selectedProvider.model}`);
+        console.log(`Theme: ${config_1.RULES_PRESETS[selectedPreset]?.name || 'Custom'}\n`);
     }
     finally {
         if (shouldCloseRl) {

@@ -17,21 +17,18 @@
 ╚═════════════════════════╝
 ```
 
-## What is this?
-
-**A gamified task manager where every task is a folder and every project is a dungeon.**
-
-Instead of flat text files, your tasks become a **file system tree**. Nested tasks = nested folders. Complete tasks to earn XP, level up, and unlock achievements.
+**Turn your backlog into a dungeon crawl.** Roguelike CLI is a terminal-based task manager that transforms productivity into an RPG experience. Complete quests, level up, and conquer your goals.
 
 ## Features
 
-- **Navigate** your todos like directories (`cd`, `ls`, `tree`)
-- **Track progress** with XP, levels, and streaks
-- **Earn achievements** for completing tasks
-- **Mark milestones** as boss fights (3x XP)
-- **Set deadlines** with human-readable dates
-- **Generate visualizations** - trees, block diagrams, dungeon maps
-- Let **AI help** you structure complex projects
+- **RPG Engine** — Tasks are quests. Completing them earns XP, unlocks achievements, and levels you up.
+- **AI Game Master** — Integrated AI helps decompose complex tasks and generates structured plans.
+- **Local-First** — Your data stays on your machine in simple folders and JSON files.
+- **Themeable** — Choose your adventure style: Fantasy, Space Opera, Star Wars, Cyberpunk, and more.
+
+## Why Roguelike CLI?
+
+Most task managers are boring. We make deep work addictive by applying proven RPG mechanics to your daily workflow.
 
 ## Install
 
@@ -40,40 +37,107 @@ npm i -g roguelike-cli
 rlc
 ```
 
+## Folder Structure
+
+Every task is a folder. You can drop files directly into task folders — designs, docs, code, anything. Your file manager becomes your task manager.
+
+```
+my-startup/
+├── research/
+│   ├── market-analysis/
+│   │   └── competitors.xlsx    <- attached file
+│   └── user-interviews/
+│       └── notes.md            <- attached file
+├── development/
+│   ├── backend-api/
+│   │   └── spec.yaml           <- attached file
+│   └── frontend-ui/
+└── launch/
+    └── marketing/
+```
+
+Navigate with `cd`, view with `tree`, open in Finder with `open`. It's just folders.
+
 ## Quick Start
 
 ```
-> todo launch startup
+> todo launch my startup
 
 ├── Research [BOSS]
 │   ├── Market analysis
-│   └── User interviews
+│   └── User interviews [DUE: +7d]
 ├── Development
-│   ├── Backend API [DUE: +7d]
+│   ├── Backend API [DUE: Jan 20]
 │   └── Frontend UI
 └── Launch [MILESTONE]
-    └── Marketing campaign
 
-[Type "save" to create folder launch-startup/]
+[Type "save" to create folders]
 > save
-Created todo folder: launch-startup/
+Created: launch-my-startup/
 
-> cd launch-startup/research
+> cd launch-my-startup/research
 > done
 
-=== TASK COMPLETED ===
+=== QUEST COMPLETED ===
 
-Tasks completed: 3
-Bosses defeated: 1
 +45 XP
-
 *** LEVEL UP! ***
-You are now level 2!
 
 === NEW ACHIEVEMENTS ===
-[x] First Blood: Complete your first task
-[x] Boss Slayer: Complete a boss task
+[x] First Blood: Complete your first quest
+[x] Boss Slayer: Defeat a boss
 ```
+
+## Configuration
+
+Run `init` to set up, or use `config` flags:
+
+```
+> config
+
+Provider:     claude
+Model:        claude-sonnet-4-20250514
+API Key:      sk-ant-a...xxxx
+Storage:      /Users/you/.rlc/workspace
+Theme:        Fantasy RPG
+Rules:        Use fantasy RPG language...
+
+Set with flags:
+  config -k=<key>       Set API key
+  config -m=<model>     Set model
+  config -t=<theme>     Set theme
+  config -r="<rules>"   Set custom rules
+```
+
+### Default Settings
+
+| Setting | Default |
+|---------|---------|
+| Provider | Claude Sonnet 4.5 |
+| Storage | `~/.rlc/workspace` |
+| Theme | Default (no theme) |
+
+## Themes (Rules)
+
+Themes change how the AI speaks. Set with `config -t=<theme>` or during `init`.
+
+| Theme | Style |
+|-------|-------|
+| `default` | Standard task manager language |
+| `fantasy` | Quests, dungeons, dragons, loot |
+| `space` | Missions, starships, commanders |
+| `starwars` | Jedi, Force, Rebel Alliance |
+| `western` | Bounties, sheriffs, frontier |
+| `cyberpunk` | Gigs, netrunners, corps |
+| `pirate` | Plunder, treasure, seven seas |
+
+### Custom Rules
+
+```
+> config -r="Speak like a medieval knight. Tasks are 'duties'. Use 'huzzah' for success."
+```
+
+Or select "Custom" during `init` to enter your own rules.
 
 ## Commands
 
@@ -84,24 +148,21 @@ You are now level 2!
 | `ls` | List tasks (shows status) |
 | `tree` | Task tree with deadlines |
 | `tree -A` | Include files |
-| `tree --depth=N` | Limit depth |
 | `cd <task>` | Enter task |
-| `..`, `...` | Go up 1 or 2 levels |
-| `pwd` | Current path |
+| `..`, `...` | Go up levels |
 | `open` | Open in Finder |
 
 ### Task Management
 
 | Command | Description |
 |---------|-------------|
-| `done` | Complete task (recursive, earns XP) |
-| `undo` | Undo last done (restores XP) |
+| `done` | Complete task (earns XP) |
+| `undo` | Undo last done |
 | `deadline <date>` | Set deadline |
-| `boss` | Toggle boss status (3x XP) |
-| `block [node]` | Block by task or text reason |
-| `unblock` | Remove blocked status |
-| `status` | Show task details |
-| `check` | Show overdue/upcoming deadlines |
+| `boss` | Toggle boss (3x XP) |
+| `block [node]` | Block by task |
+| `unblock` | Remove block |
+| `check` | Show deadlines |
 
 ### Gamification
 
@@ -109,77 +170,63 @@ You are now level 2!
 |---------|-------------|
 | `stats` | XP, level, streaks |
 | `achievements` | Achievement list |
-| `map` | Dungeon map view |
-| `map --ai` | AI-generated dungeon |
+| `map` | Dungeon map |
+| `map --ai` | AI-generated map |
 
 ### File Operations
 
 | Command | Description |
 |---------|-------------|
 | `mkdir <name>` | Create task |
-| `cp <src> <dst>` | Copy |
-| `mv <src> <dst>` | Move/rename |
-| `rm <name>` | Delete file |
-| `rm -rf <name>` | Delete folder |
+| `cp`, `mv`, `rm` | Standard ops |
 
-### AI Generation
+### Configuration
 
 | Command | Description |
 |---------|-------------|
-| `<description>` | AI generates preview |
-| `save` | Save pending schema |
-| `cancel` | Discard |
+| `init` | Setup wizard |
+| `config` | View settings |
+| `config -k=<key>` | Set API key |
+| `config -m=<model>` | Set model |
+| `config -t=<theme>` | Set theme |
+| `config -r="<rules>"` | Custom rules |
 
 ## Deadlines
 
 ```
 > deadline today       # Due today
 > deadline tomorrow    # Due tomorrow
-> deadline +3d         # Due in 3 days
-> deadline Jan 15      # Due on date
+> deadline +3d         # In 3 days
+> deadline Jan 15      # Specific date
 ```
 
 Tree shows deadlines:
-
 ```
-├── Backend API/ [BOSS] [3d left]
+├── Backend/ [BOSS] [3d left]
 │   ├── Database/ [DONE]
-│   └── Endpoints/ [OVERDUE 2d]
+│   └── API/ [OVERDUE 2d]
 └── Frontend/ [tomorrow]
 ```
 
 ## XP System
 
-- Base XP: 10 per task
-- Depth bonus: +5 XP per nesting level
-- Boss multiplier: 3x XP
-
-| Level | XP Required |
-|-------|-------------|
-| 1 | 0 |
-| 2 | 100 |
-| 3 | 150 |
-| 5 | 337 |
-| 10 | 3,844 |
+| Factor | XP |
+|--------|-----|
+| Base task | 10 |
+| Per depth level | +5 |
+| Boss multiplier | 3x |
 
 ## Achievements
 
-| Achievement | Description |
-|-------------|-------------|
+| Achievement | How to unlock |
+|-------------|---------------|
 | First Blood | Complete first task |
 | Getting Started | Complete 10 tasks |
-| Productive | Complete 50 tasks |
 | Centurion | Complete 100 tasks |
-| Deep Diver | Complete task at depth 5+ |
-| Boss Slayer | Complete a boss task |
-| Boss Hunter | Defeat 5 bosses |
-| Speedrunner | Complete task same day |
-| On a Roll | 3 day streak |
+| Deep Diver | Task at depth 5+ |
+| Boss Slayer | Complete a boss |
+| Speedrunner | Same-day completion |
 | Streak Master | 7 day streak |
-| Unstoppable | 30 day streak |
-| Adventurer | Reach level 5 |
-| Veteran | Reach level 10 |
-| Legend | Reach level 25 |
 
 ## Dungeon Map
 
@@ -187,42 +234,12 @@ Tree shows deadlines:
 > map
 
   ###########################################
-  #                    #                    #
-  #   [Research]       #   [Development]    #
-  #   * Market         +---* Backend        #
-  #   x Users          #   @ Deploy BOSS    #
-  #                    #                    #
-  ##########+############+##################
-           |            |
-  ##########+############+##################
-  #                                         #
-  #            [Launch]                     #
-  #            * Marketing                  #
-  #            @ SHIP IT! [BOSS]            #
-  #                                         #
-  ###########################################
-
-Legend: * Task  x Done  @ Boss  ! Blocked  + Door
-```
-
-Use `map --ai` for creative AI-generated layouts.
-
-## Block Diagrams
-
-```
-> schema kubernetes cluster
-
-┌─────────────────────────────────────────────────────────────┐
-│                     Kubernetes Cluster                       │
-│                                                              │
-│  ┌──────────────────┐      ┌──────────────────┐            │
-│  │   Control Plane  │      │   Worker Nodes   │            │
-│  └────────┬─────────┘      └────────┬─────────┘            │
-│           └──────────┬───────────────┘                      │
-│  ┌──────────────────┐│┌──────────────────┐                 │
-│  │    PostgreSQL    │││     Redis        │                 │
-│  └──────────────────┘│└──────────────────┘                 │
-└─────────────────────────────────────────────────────────────┘
+  #                   #                     #
+  #   [Research]      #   [Development]     #
+  #   x Analysis      +---* Backend         #
+  #   x Interviews    #   @ Deploy BOSS     #
+  #                   #                     #
+  ##########+###########+###################
 ```
 
 ## Clipboard
@@ -230,15 +247,6 @@ Use `map --ai` for creative AI-generated layouts.
 ```
 > tree | pbcopy     # macOS
 > tree | clip       # Windows
-> ls | copy         # Alternative
-```
-
-## Configuration
-
-```
-> init              # Setup wizard
-> config            # Show settings
-> config:apiKey=sk-... # Set API key
 ```
 
 ## Website

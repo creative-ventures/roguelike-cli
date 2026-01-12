@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.RULES_PRESETS = void 0;
 exports.initConfig = initConfig;
 exports.saveConfig = saveConfig;
 exports.getConfig = getConfig;
@@ -40,6 +41,37 @@ exports.updateConfig = updateConfig;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
+// Preset rules for different themes
+exports.RULES_PRESETS = {
+    default: {
+        name: 'Default (No theme)',
+        rules: '',
+    },
+    fantasy: {
+        name: 'Fantasy RPG',
+        rules: 'Use fantasy RPG language. Tasks are "quests", completing them is "slaying". Major milestones are "boss battles". Use terms like "adventurer", "dungeon", "loot", "guild". Add flavor text with swords, dragons, magic.',
+    },
+    space: {
+        name: 'Space Opera',
+        rules: 'Use sci-fi space language. Tasks are "missions", completing them is "mission accomplished". Major milestones are "final frontier". Use terms like "commander", "starship", "coordinates", "hyperdrive". Add flavor with stars, planets, aliens.',
+    },
+    starwars: {
+        name: 'Star Wars',
+        rules: 'Use Star Wars language. Tasks are "missions from the Rebel Alliance". Completing is "defeating the Empire". Milestones are "destroying the Death Star". Use "Jedi", "Force", "Padawan", "Master". May the Force be with you.',
+    },
+    western: {
+        name: 'Wild West',
+        rules: 'Use Wild West language. Tasks are "bounties", completing them is "collecting the reward". Milestones are "showdowns". Use terms like "sheriff", "outlaw", "saloon", "frontier", "partner". Add dusty trails and tumbleweeds.',
+    },
+    cyberpunk: {
+        name: 'Cyberpunk',
+        rules: 'Use cyberpunk language. Tasks are "gigs", completing them is "flatlined". Milestones are "megacorp takedowns". Use terms like "netrunner", "chrome", "corpo", "edgerunner", "eddies". Add neon and rain.',
+    },
+    pirate: {
+        name: 'Pirate',
+        rules: 'Use pirate language. Tasks are "plunder", completing them is "claiming the treasure". Milestones are "capturing the flagship". Use "captain", "crew", "booty", "seven seas", "landlubber". Arr matey!',
+    },
+};
 const CONFIG_FILE = path.join(os.homedir(), '.rlc', 'config.json');
 const DEFAULT_STORAGE = path.join(os.homedir(), '.rlc', 'workspace');
 async function initConfig() {

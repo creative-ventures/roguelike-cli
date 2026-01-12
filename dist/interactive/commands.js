@@ -931,35 +931,66 @@ async function processCommand(input, currentPath, config, signal, rl) {
         return wrapResult({ output: currentPath });
     }
     if (command === 'config') {
+        const { updateConfig, RULES_PRESETS } = await Promise.resolve().then(() => __importStar(require('../config/config')));
+        // Check for flags
+        const keyFlag = parts.find(p => p.startsWith('-k=') || p.startsWith('--key='));
+        const modelFlag = parts.find(p => p.startsWith('-m=') || p.startsWith('--model='));
+        const rulesFlag = parts.find(p => p.startsWith('-r=') || p.startsWith('--rules='));
+        const themeFlag = parts.find(p => p.startsWith('-t=') || p.startsWith('--theme='));
+        if (keyFlag) {
+            const value = keyFlag.split('=').slice(1).join('=');
+            updateConfig({ apiKey: value });
+            return wrapResult({ output: 'API key updated.' });
+        }
+        if (modelFlag) {
+            const value = modelFlag.split('=').slice(1).join('=');
+            updateConfig({ model: value });
+            return wrapResult({ output: `Model updated: ${value}` });
+        }
+        if (rulesFlag) {
+            const value = rulesFlag.split('=').slice(1).join('=');
+            updateConfig({ rules: value, rulesPreset: 'custom' });
+            return wrapResult({ output: 'Custom rules updated.' });
+        }
+        if (themeFlag) {
+            const value = themeFlag.split('=').slice(1).join('=').toLowerCase();
+            if (RULES_PRESETS[value]) {
+                updateConfig({
+                    rules: RULES_PRESETS[value].rules,
+                    rulesPreset: value
+                });
+                return wrapResult({ output: `Theme updated: ${RULES_PRESETS[value].name}` });
+            }
+            else {
+                const themes = Object.keys(RULES_PRESETS).join(', ');
+                return wrapResult({ output: `Unknown theme. Available: ${themes}` });
+            }
+        }
+        // Show config
         const maskedKey = config.apiKey
             ? config.apiKey.slice(0, 8) + '...' + config.apiKey.slice(-4)
             : '(not set)';
+        const themeName = config.rulesPreset
+            ? (RULES_PRESETS[config.rulesPreset]?.name || 'Custom')
+            : 'Default';
+        const rulesPreview = config.rules
+            ? (config.rules.length > 50 ? config.rules.substring(0, 50) + '...' : config.rules)
+            : '(none)';
         const output = `
 Provider:     ${config.aiProvider}
 Model:        ${config.model || '(default)'}
 API Key:      ${maskedKey}
 Storage:      ${config.storagePath}
+Theme:        ${themeName}
+Rules:        ${rulesPreview}
+
+Set with flags:
+  config -k=<key>       Set API key
+  config -m=<model>     Set model
+  config -t=<theme>     Set theme (fantasy, space, starwars, western, cyberpunk, pirate)
+  config -r="<rules>"   Set custom rules
 `.trim();
         return wrapResult({ output });
-    }
-    if (command.startsWith('config:')) {
-        const configParts = input.split(':').slice(1).join(':').trim().split('=');
-        if (configParts.length !== 2) {
-            return { output: 'Usage: config:key=value' };
-        }
-        const key = configParts[0].trim();
-        const value = configParts[1].trim();
-        if (key === 'apiKey') {
-            const { updateConfig } = await Promise.resolve().then(() => __importStar(require('../config/config')));
-            updateConfig({ apiKey: value });
-            return { output: 'API key updated.' };
-        }
-        if (key === 'storagePath') {
-            const { updateConfig } = await Promise.resolve().then(() => __importStar(require('../config/config')));
-            updateConfig({ storagePath: value, currentPath: value });
-            return { output: `Storage path updated to: ${value}` };
-        }
-        return { output: `Unknown config key: ${key}` };
     }
     if (command === 'help') {
         return wrapResult({
@@ -968,9 +999,7 @@ Storage:      ${config.storagePath}
 
 Navigation:
   ls                    List tasks and files
-  tree                  Show task tree with status
-  tree -A               Include files
-  tree --depth=N        Limit tree depth
+  tree [-A] [--depth=N] Show task tree
   cd <task>             Navigate into task
   cd .., ...            Go back 1 or 2 levels
   pwd                   Show current path
@@ -978,49 +1007,43 @@ Navigation:
 
 Task Management:
   mkdir <name>          Create new task
-  done                  Mark current task as completed (recursive)
-  undo                  Undo last done (restores XP)
-  deadline <date>       Set deadline (today, tomorrow, +3d, Jan 15)
-  boss                  Toggle boss/milestone status (3x XP)
-  block [node]          Block by task (or text reason)
-  unblock               Remove blocked status
-  status                Show current task details
-  check                 Show overdue/upcoming deadlines
-
-File Operations:
-  cp <src> <dest>       Copy file or folder
-  mv <src> <dest>       Move/rename
-  rm <name>             Delete file
-  rm -rf <name>         Delete folder
+  done                  Complete task (earns XP)
+  undo                  Undo last done
+  deadline <date>       Set deadline (today, +3d, Jan 15)
+  boss                  Toggle boss status (3x XP)
+  block [node]          Block by task or text
+  unblock               Remove block
+  status                Task details
+  check                 Upcoming deadlines
 
 Gamification:
-  stats                 Show XP, level, streaks
-  achievements          Show achievement list
-  map                   Dungeon map view
-  map --ai              AI-generated dungeon map
+  stats                 XP, level, streaks
+  achievements          Achievement list
+  map [--ai]            Dungeon map view
 
-Schema Generation:
-  <description>         AI generates todo/schema preview
-  save                  Save pending schema
-  cancel                Discard pending schema
-
-Utility:
+Configuration:
   init                  Setup wizard
   config                Show settings
+  config -k=<key>       Set API key
+  config -m=<model>     Set model
+  config -t=<theme>     Set theme (fantasy, space, starwars, etc)
+  config -r="<rules>"   Custom AI rules
+
+Themes:
+  default, fantasy, space, starwars, western, cyberpunk, pirate
+
+File Operations:
+  cp, mv, rm [-rf]      Standard file operations
   clean --yes           Clear current folder
-  v, version            Show version
-  help                  This help
-  exit, quit            Exit
+
+AI Generation:
+  <description>         AI generates preview
+  save                  Save to folders/file
+  cancel                Discard
 
 Clipboard:
-  <cmd> | pbcopy        Copy output (macOS)
-  <cmd> | clip          Copy output (Windows)
-
-Examples:
-  block backend-api     Block current task by sibling task
-  block "waiting for design"   Block with text reason
-  deadline +3d          Due in 3 days
-  check                 See all upcoming deadlines
+  <cmd> | pbcopy        Copy to clipboard (macOS)
+  <cmd> | clip          Copy to clipboard (Windows)
 
 www.rlc.rocks
 `.trim()

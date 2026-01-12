@@ -46,7 +46,7 @@ Create a creative, interesting dungeon layout for the given tasks.
 Output ONLY the ASCII map, no JSON wrapper.`;
 async function generateSchemaWithAI(input, config, signal, history) {
     if (!config.apiKey) {
-        throw new Error('API key not set. Use config:apiKey=<key> to set it.');
+        throw new Error('API key not set. Use config -k=<key> to set it.');
     }
     const client = new sdk_1.default({
         apiKey: config.apiKey,
@@ -68,10 +68,15 @@ async function generateSchemaWithAI(input, config, signal, history) {
     });
     try {
         const model = config.model || 'claude-sonnet-4-20250514';
+        // Build system prompt with custom rules
+        let systemPrompt = SYSTEM_PROMPT;
+        if (config.rules) {
+            systemPrompt += '\n\nADDITIONAL STYLE RULES (apply to all responses):\n' + config.rules;
+        }
         const message = await client.messages.create({
             model: model,
             max_tokens: 2000,
-            system: SYSTEM_PROMPT,
+            system: systemPrompt,
             messages: messages,
         });
         const content = message.content[0];
@@ -98,17 +103,22 @@ async function generateSchemaWithAI(input, config, signal, history) {
 }
 async function generateDungeonMapWithAI(treeContent, config, signal) {
     if (!config.apiKey) {
-        throw new Error('API key not set. Use config:apiKey=<key> to set it.');
+        throw new Error('API key not set. Use config -k=<key> to set it.');
     }
     const client = new sdk_1.default({
         apiKey: config.apiKey,
     });
     try {
         const model = config.model || 'claude-sonnet-4-20250514';
+        // Build system prompt with custom rules
+        let systemPrompt = DUNGEON_MAP_PROMPT;
+        if (config.rules) {
+            systemPrompt += '\n\nADDITIONAL STYLE RULES:\n' + config.rules;
+        }
         const message = await client.messages.create({
             model: model,
             max_tokens: 2000,
-            system: DUNGEON_MAP_PROMPT,
+            system: systemPrompt,
             messages: [{
                     role: 'user',
                     content: 'Generate a dungeon map for this task tree:\n\n' + treeContent

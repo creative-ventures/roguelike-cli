@@ -60,7 +60,7 @@ export async function generateSchemaWithAI(
   history?: ConversationMessage[]
 ): Promise<GeneratedSchema | null> {
   if (!config.apiKey) {
-    throw new Error('API key not set. Use config:apiKey=<key> to set it.');
+    throw new Error('API key not set. Use config -k=<key> to set it.');
   }
   
   const client = new Anthropic({
@@ -87,10 +87,17 @@ export async function generateSchemaWithAI(
 
   try {
     const model = config.model || 'claude-sonnet-4-20250514';
+    
+    // Build system prompt with custom rules
+    let systemPrompt = SYSTEM_PROMPT;
+    if (config.rules) {
+      systemPrompt += '\n\nADDITIONAL STYLE RULES (apply to all responses):\n' + config.rules;
+    }
+    
     const message = await client.messages.create({
       model: model,
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: messages,
     });
     
@@ -126,7 +133,7 @@ export async function generateDungeonMapWithAI(
   signal?: AbortSignal
 ): Promise<string | null> {
   if (!config.apiKey) {
-    throw new Error('API key not set. Use config:apiKey=<key> to set it.');
+    throw new Error('API key not set. Use config -k=<key> to set it.');
   }
   
   const client = new Anthropic({
@@ -135,10 +142,17 @@ export async function generateDungeonMapWithAI(
 
   try {
     const model = config.model || 'claude-sonnet-4-20250514';
+    
+    // Build system prompt with custom rules
+    let systemPrompt = DUNGEON_MAP_PROMPT;
+    if (config.rules) {
+      systemPrompt += '\n\nADDITIONAL STYLE RULES:\n' + config.rules;
+    }
+    
     const message = await client.messages.create({
       model: model,
       max_tokens: 2000,
-      system: DUNGEON_MAP_PROMPT,
+      system: systemPrompt,
       messages: [{
         role: 'user',
         content: 'Generate a dungeon map for this task tree:\n\n' + treeContent

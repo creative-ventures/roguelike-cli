@@ -2,7 +2,7 @@
 // Base dictionaries for different rule presets
 // Keys are used everywhere, values are localized based on rules
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DICTIONARIES = exports.WESTERN_DICTIONARY = exports.PIRATE_DICTIONARY = exports.CYBERPUNK_DICTIONARY = exports.STARWARS_DICTIONARY = exports.SPACE_DICTIONARY = exports.FANTASY_DICTIONARY = exports.DEFAULT_DICTIONARY = void 0;
+exports.DICTIONARIES = exports.NINJA_DICTIONARY = exports.WARHAMMER_DICTIONARY = exports.WESTERN_DICTIONARY = exports.PIRATE_DICTIONARY = exports.CYBERPUNK_DICTIONARY = exports.STARWARS_DICTIONARY = exports.SPACE_DICTIONARY = exports.FANTASY_DICTIONARY = exports.DEFAULT_DICTIONARY = void 0;
 exports.getDictionary = getDictionary;
 // Default dictionary (no theme)
 exports.DEFAULT_DICTIONARY = {
@@ -431,6 +431,128 @@ exports.WESTERN_DICTIONARY = {
         inventory: 'Saddlebag',
     },
 };
+// Warhammer dictionary
+exports.WARHAMMER_DICTIONARY = {
+    messages: {
+        questCompleted: 'FOR THE EMPEROR!',
+        levelUp: 'YOUR GLORY GROWS!',
+        newAchievement: 'HONOR TO THE CHAPTER',
+        lootDropped: 'WARGEAR ACQUIRED',
+        bossDefeated: 'HERETIC PURGED',
+        streakBonus: 'ZEALOT BONUS',
+        taskBlocked: 'Chaos blocks the path',
+        taskUnblocked: 'The Warp clears',
+        deadlineSet: 'Crusade deadline set',
+        deadlineOverdue: 'THE INQUISITION AWAITS',
+        welcomeBack: 'Welcome back, Battle-Brother',
+    },
+    achievements: {
+        firstTask: { name: 'Initiate', desc: 'Begin your crusade' },
+        tasks10: { name: 'Battle-Brother', desc: 'Complete 10 missions' },
+        tasks50: { name: 'Veteran', desc: 'Complete 50 missions' },
+        tasks100: { name: 'Chapter Champion', desc: 'Complete 100 missions' },
+        tasks500: { name: 'Chapter Master', desc: 'Complete 500 missions' },
+        tasks1000: { name: 'Living Saint', desc: 'Complete 1000 missions' },
+        boss1: { name: 'Xenos Slayer', desc: 'Purge your first heretic' },
+        boss5: { name: 'Daemon Hunter', desc: 'Purge 5 heretics' },
+        boss10: { name: 'Inquisitor', desc: 'Purge 10 heretics' },
+        boss25: { name: 'Primarch\'s Chosen', desc: 'Purge 25 heretics' },
+        streak3: { name: 'Zealous', desc: '3 day crusade streak' },
+        streak7: { name: 'Unwavering', desc: '7 day crusade streak' },
+        streak14: { name: 'Fanatic', desc: '14 day crusade streak' },
+        streak30: { name: 'Eternal Crusader', desc: '30 day crusade streak' },
+        depth3: { name: 'Underhive Explorer', desc: 'Descend to level 3' },
+        depth5: { name: 'Warp Diver', desc: 'Descend to level 5' },
+        depth10: { name: 'Eye of Terror', desc: 'Descend to level 10' },
+        speedrun: { name: 'Blitzkrieg', desc: 'Same-day mission' },
+        nightOwl: { name: 'Night Lord', desc: 'Mission after midnight' },
+        earlyBird: { name: 'Dawn Assault', desc: 'Mission before dawn' },
+    },
+    loot: {
+        common: ['Bolt Rounds', 'Ration Pack', 'Purity Seal', 'Combat Knife', 'Frag Grenade'],
+        uncommon: ['Bolter', 'Chainsword', 'Power Armor Piece', 'Auspex', 'Servo-skull'],
+        rare: ['Power Sword', 'Storm Bolter', 'Terminator Armor', 'Jump Pack', 'Rosarius'],
+        epic: ['Thunder Hammer', 'Artificer Armor', 'Relic Blade', 'Iron Halo', 'Crux Terminatus'],
+        legendary: ['Emperor\'s Champion Blade', 'Armor of Faith', 'Primarch\'s Gene-seed', 'Golden Throne Shard', 'STC Fragment'],
+    },
+    rarities: {
+        common: 'Common',
+        uncommon: 'Requisitioned',
+        rare: 'Reliquary',
+        epic: 'Mastercraft',
+        legendary: 'Archeotech',
+    },
+    stats: {
+        level: 'Battle Honors',
+        xp: 'Glory',
+        tasksCompleted: 'Missions Completed',
+        bossesDefeated: 'Heretics Purged',
+        currentStreak: 'Crusade Streak',
+        longestStreak: 'Longest Crusade',
+        inventory: 'Armory',
+    },
+};
+// Ninja/Samurai dictionary
+exports.NINJA_DICTIONARY = {
+    messages: {
+        questCompleted: 'MISSION ACCOMPLISHED',
+        levelUp: 'YOUR SKILL GROWS!',
+        newAchievement: 'HONOR EARNED',
+        lootDropped: 'TREASURE FOUND',
+        bossDefeated: 'ENEMY VANQUISHED',
+        streakBonus: 'COMBO MASTERY',
+        taskBlocked: 'The path is guarded',
+        taskUnblocked: 'The way is clear',
+        deadlineSet: 'Contract accepted',
+        deadlineOverdue: 'DISHONOR UPON YOU',
+        welcomeBack: 'Welcome back, Shadow',
+    },
+    achievements: {
+        firstTask: { name: 'Apprentice', desc: 'Begin your training' },
+        tasks10: { name: 'Genin', desc: 'Complete 10 missions' },
+        tasks50: { name: 'Chunin', desc: 'Complete 50 missions' },
+        tasks100: { name: 'Jonin', desc: 'Complete 100 missions' },
+        tasks500: { name: 'Kage', desc: 'Complete 500 missions' },
+        tasks1000: { name: 'Legendary Shinobi', desc: 'Complete 1000 missions' },
+        boss1: { name: 'First Kill', desc: 'Defeat your first target' },
+        boss5: { name: 'Assassin', desc: 'Defeat 5 targets' },
+        boss10: { name: 'Shadow Master', desc: 'Defeat 10 targets' },
+        boss25: { name: 'Demon Slayer', desc: 'Defeat 25 targets' },
+        streak3: { name: 'Swift Shadow', desc: '3 day mission streak' },
+        streak7: { name: 'Ghost', desc: '7 day mission streak' },
+        streak14: { name: 'Phantom', desc: '14 day mission streak' },
+        streak30: { name: 'Living Shadow', desc: '30 day mission streak' },
+        depth3: { name: 'Temple Infiltrator', desc: 'Descend to level 3' },
+        depth5: { name: 'Castle Breaker', desc: 'Descend to level 5' },
+        depth10: { name: 'Shogun\'s Nightmare', desc: 'Descend to level 10' },
+        speedrun: { name: 'Wind Step', desc: 'Same-day mission' },
+        nightOwl: { name: 'Night Blade', desc: 'Mission after midnight' },
+        earlyBird: { name: 'Dawn Strike', desc: 'Mission before dawn' },
+    },
+    loot: {
+        common: ['Shuriken', 'Smoke Bomb', 'Rice Ball', 'Bandages', 'Rope'],
+        uncommon: ['Katana', 'Kunai', 'Grappling Hook', 'Ninja Garb', 'Caltrops'],
+        rare: ['Kusarigama', 'Shadow Cloak', 'Poison Vial', 'Oni Mask', 'Sacred Scroll'],
+        epic: ['Muramasa Blade', 'Dragon Scale Armor', 'Tengu Feather', 'Demon Mask', 'Phoenix Down'],
+        legendary: ['Sword of the Immortal', 'Armor of Shadows', 'Eye of the Dragon', 'Shinobi Legacy', 'Path of the Wind'],
+    },
+    rarities: {
+        common: 'Common',
+        uncommon: 'Refined',
+        rare: 'Sacred',
+        epic: 'Mythic',
+        legendary: 'Divine',
+    },
+    stats: {
+        level: 'Rank',
+        xp: 'Honor',
+        tasksCompleted: 'Missions Completed',
+        bossesDefeated: 'Enemies Vanquished',
+        currentStreak: 'Mission Streak',
+        longestStreak: 'Longest Campaign',
+        inventory: 'Inventory',
+    },
+};
 // Map preset names to dictionaries
 exports.DICTIONARIES = {
     default: exports.DEFAULT_DICTIONARY,
@@ -440,6 +562,8 @@ exports.DICTIONARIES = {
     cyberpunk: exports.CYBERPUNK_DICTIONARY,
     pirate: exports.PIRATE_DICTIONARY,
     western: exports.WESTERN_DICTIONARY,
+    warhammer: exports.WARHAMMER_DICTIONARY,
+    ninja: exports.NINJA_DICTIONARY,
 };
 // Get dictionary based on rules preset
 function getDictionary(preset) {

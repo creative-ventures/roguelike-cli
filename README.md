@@ -94,9 +94,11 @@ Rules change how the AI speaks. Set during `init` or with `config -R="<rules>"`.
 | `fantasy` | Quests, dungeons, dragons, loot |
 | `space` | Missions, starships, commanders |
 | `starwars` | Jedi, Force, Rebel Alliance |
-| `western` | Bounties, sheriffs, frontier |
 | `cyberpunk` | Gigs, netrunners, corps |
 | `pirate` | Plunder, treasure, seven seas |
+| `western` | Bounties, sheriffs, frontier |
+| `warhammer` | For the Emperor! Purge heretics |
+| `ninja` | Shinobi, shadows, honor, blades |
 
 ### Custom Rules
 

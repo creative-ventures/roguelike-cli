@@ -54,6 +54,14 @@ export const RULES_PRESETS: Record<string, { name: string; rules: string }> = {
     name: 'Pirate',
     rules: 'Use pirate language. Tasks are "plunder", completing them is "claiming the treasure". Milestones are "capturing the flagship". Use "captain", "crew", "booty", "seven seas", "landlubber". Arr matey!',
   },
+  warhammer: {
+    name: 'Warhammer 40K',
+    rules: 'Use Warhammer 40K language. Tasks are "missions for the Emperor". Completing is "purging heretics". Milestones are "crusades". Use "Battle-Brother", "Chapter", "Inquisition", "Chaos", "Xenos". For the Emperor!',
+  },
+  ninja: {
+    name: 'Ninja/Samurai',
+    rules: 'Use Japanese ninja/samurai language. Tasks are "missions". Completing is "vanquishing enemies". Milestones are "contracts". Use "shinobi", "sensei", "shadow", "honor", "blade". Move like the wind, strike like lightning.',
+  },
 };
 
 const CONFIG_FILE = path.join(os.homedir(), '.rlc', 'config.json');

@@ -62,6 +62,10 @@ export const RULES_PRESETS: Record<string, { name: string; rules: string }> = {
     name: 'Ninja/Samurai',
     rules: 'Use Japanese ninja/samurai language. Tasks are "missions". Completing is "vanquishing enemies". Milestones are "contracts". Use "shinobi", "sensei", "shadow", "honor", "blade". Move like the wind, strike like lightning.',
   },
+  darksouls: {
+    name: 'Dark Souls',
+    rules: 'Use Dark Souls language. Tasks are "challenges". Completing is "victory achieved". Failing is "YOU DIED". Milestones are "boss fights". Use "Ashen One", "bonfire", "souls", "ember", "hollow". Praise the Sun!',
+  },
 };
 
 const CONFIG_FILE = path.join(os.homedir(), '.rlc', 'config.json');

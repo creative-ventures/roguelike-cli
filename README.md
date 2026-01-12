@@ -99,6 +99,7 @@ Rules change how the AI speaks. Set during `init` or with `config -R="<rules>"`.
 | `western` | Bounties, sheriffs, frontier |
 | `warhammer` | For the Emperor! Purge heretics |
 | `ninja` | Shinobi, shadows, honor, blades |
+| `darksouls` | YOU DIED. Praise the Sun! |
 
 ### Custom Rules
 

@@ -2,7 +2,7 @@
 // Base dictionaries for different rule presets
 // Keys are used everywhere, values are localized based on rules
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DICTIONARIES = exports.NINJA_DICTIONARY = exports.WARHAMMER_DICTIONARY = exports.WESTERN_DICTIONARY = exports.PIRATE_DICTIONARY = exports.CYBERPUNK_DICTIONARY = exports.STARWARS_DICTIONARY = exports.SPACE_DICTIONARY = exports.FANTASY_DICTIONARY = exports.DEFAULT_DICTIONARY = void 0;
+exports.DICTIONARIES = exports.DARKSOULS_DICTIONARY = exports.NINJA_DICTIONARY = exports.WARHAMMER_DICTIONARY = exports.WESTERN_DICTIONARY = exports.PIRATE_DICTIONARY = exports.CYBERPUNK_DICTIONARY = exports.STARWARS_DICTIONARY = exports.SPACE_DICTIONARY = exports.FANTASY_DICTIONARY = exports.DEFAULT_DICTIONARY = void 0;
 exports.getDictionary = getDictionary;
 // Default dictionary (no theme)
 exports.DEFAULT_DICTIONARY = {
@@ -553,6 +553,67 @@ exports.NINJA_DICTIONARY = {
         inventory: 'Inventory',
     },
 };
+// Dark Souls dictionary
+exports.DARKSOULS_DICTIONARY = {
+    messages: {
+        questCompleted: 'VICTORY ACHIEVED',
+        levelUp: 'SOUL LEVEL INCREASED!',
+        newAchievement: 'ACHIEVEMENT UNLOCKED',
+        lootDropped: 'ITEM ACQUIRED',
+        bossDefeated: 'GREAT ENEMY FELLED',
+        streakBonus: 'HUMANITY RESTORED',
+        taskBlocked: 'Path blocked. Try different approach.',
+        taskUnblocked: 'A shortcut has opened',
+        deadlineSet: 'The bell tolls',
+        deadlineOverdue: 'YOU DIED',
+        welcomeBack: 'Welcome back, Ashen One',
+    },
+    achievements: {
+        firstTask: { name: 'First Flame', desc: 'Begin your journey' },
+        tasks10: { name: 'Chosen Undead', desc: 'Complete 10 tasks' },
+        tasks50: { name: 'Undead Champion', desc: 'Complete 50 tasks' },
+        tasks100: { name: 'Lord of Cinder', desc: 'Complete 100 tasks' },
+        tasks500: { name: 'Dark Lord', desc: 'Complete 500 tasks' },
+        tasks1000: { name: 'Legend Never Dies', desc: 'Complete 1000 tasks' },
+        boss1: { name: 'Boss Slayer', desc: 'Fell your first boss' },
+        boss5: { name: 'Giant Slayer', desc: 'Fell 5 bosses' },
+        boss10: { name: 'Dragon Slayer', desc: 'Fell 10 bosses' },
+        boss25: { name: 'God Slayer', desc: 'Fell 25 bosses' },
+        streak3: { name: 'Ember Restored', desc: '3 day streak' },
+        streak7: { name: 'Kindled', desc: '7 day streak' },
+        streak14: { name: 'Flame Keeper', desc: '14 day streak' },
+        streak30: { name: 'Lord of Flame', desc: '30 day streak' },
+        depth3: { name: 'Catacombs Explorer', desc: 'Descend to depth 3' },
+        depth5: { name: 'Abyss Walker', desc: 'Descend to depth 5' },
+        depth10: { name: 'Void Wanderer', desc: 'Descend to depth 10' },
+        speedrun: { name: 'Speedrunner', desc: 'Same-day completion' },
+        nightOwl: { name: 'Dark Spirit', desc: 'Task after midnight' },
+        earlyBird: { name: 'Sun Bro', desc: 'Task before dawn' },
+    },
+    loot: {
+        common: ['Estus Flask Shard', 'Lifegem', 'Firebomb', 'Throwing Knife', 'Prism Stone'],
+        uncommon: ['Titanite Shard', 'Green Blossom', 'Homeward Bone', 'Ember', 'Undead Bone Shard'],
+        rare: ['Titanite Chunk', 'Coiled Sword', 'Sunlight Medal', 'Proof of Concord', 'Pale Tongue'],
+        epic: ['Titanite Slab', 'Soul of a Great Champion', 'Ring of Favor', 'Havel\'s Ring', 'Chloranthy Ring'],
+        legendary: ['Soul of Cinder', 'Firelink Greatsword', 'Wolf Knight Greatsword', 'Moonlight Greatsword', 'Dark Soul'],
+    },
+    rarities: {
+        common: 'Common',
+        uncommon: 'Rare',
+        rare: 'Very Rare',
+        epic: 'Legendary',
+        legendary: 'Boss Soul',
+    },
+    stats: {
+        level: 'Soul Level',
+        xp: 'Souls',
+        tasksCompleted: 'Tasks Completed',
+        bossesDefeated: 'Bosses Felled',
+        currentStreak: 'Ember Streak',
+        longestStreak: 'Longest Journey',
+        inventory: 'Inventory',
+    },
+};
 // Map preset names to dictionaries
 exports.DICTIONARIES = {
     default: exports.DEFAULT_DICTIONARY,
@@ -564,6 +625,7 @@ exports.DICTIONARIES = {
     western: exports.WESTERN_DICTIONARY,
     warhammer: exports.WARHAMMER_DICTIONARY,
     ninja: exports.NINJA_DICTIONARY,
+    darksouls: exports.DARKSOULS_DICTIONARY,
 };
 // Get dictionary based on rules preset
 function getDictionary(preset) {

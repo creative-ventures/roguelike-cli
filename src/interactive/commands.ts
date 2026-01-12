@@ -1216,7 +1216,8 @@ Gamification:
 
 Rules (AI style presets):
   Set via init or config -R="<rules>"
-  Presets: fantasy, space, starwars, cyberpunk, pirate, warhammer, ninja
+  Presets: fantasy, space, starwars, cyberpunk, pirate, 
+           warhammer, ninja, darksouls
 
 Config:
   init                  Setup wizard

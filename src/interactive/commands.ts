@@ -473,16 +473,27 @@ export async function processCommand(
   
   // Stats command
   if (command === 'stats') {
-    return wrapResult({ output: formatStats() });
+    return wrapResult({ output: formatStats(config.rulesPreset) });
+  }
+  
+  // Inventory command
+  if (command === 'inventory' || command === 'inv' || command === 'loot') {
+    const { formatInventoryDisplay } = await import('../storage/profile');
+    return wrapResult({ output: formatInventoryDisplay(config.rulesPreset) });
   }
   
   // Achievements command
   if (command === 'achievements' || command === 'ach') {
-    return wrapResult({ output: formatAchievements() });
+    return wrapResult({ output: formatAchievements(config.rulesPreset) });
   }
   
   // Done command - mark current node as completed
   if (command === 'done') {
+    const { getDictionary } = await import('../data/dictionaries');
+    const { formatLootDrop } = await import('../data/loot');
+    const { getAchievementInfo } = await import('../storage/profile');
+    const dict = getDictionary(config.rulesPreset);
+    
     const nodeConfig = readNodeConfig(currentPath);
     
     if (!nodeConfig) {
@@ -502,7 +513,8 @@ export async function processCommand(
       result.xpGained,
       nodeConfig.isBoss || false,
       depth,
-      nodeConfig.createdAt
+      nodeConfig.createdAt,
+      config.rulesPreset
     );
     
     // Save to undo history
@@ -513,27 +525,33 @@ export async function processCommand(
       timestamp: new Date().toISOString(),
     });
     
-    let output = `\n=== TASK COMPLETED ===\n`;
-    output += `\nTasks completed: ${result.tasksCompleted}`;
+    let output = `\n=== ${dict.messages.questCompleted} ===\n`;
+    output += `\nTasks: ${result.tasksCompleted}`;
     if (result.bossesDefeated > 0) {
-      output += `\nBosses defeated: ${result.bossesDefeated}`;
+      output += ` | Bosses: ${result.bossesDefeated}`;
     }
     output += `\n+${result.xpGained} XP`;
     
     if (taskResult.levelUp) {
-      output += `\n\n*** LEVEL UP! ***`;
-      output += `\nYou are now level ${taskResult.newLevel}!`;
+      output += `\n\n*** ${dict.messages.levelUp} ***`;
+      output += `\n${dict.stats.level} ${taskResult.newLevel}!`;
     }
     
     if (taskResult.newAchievements.length > 0) {
-      output += `\n\n=== NEW ACHIEVEMENTS ===`;
-      for (const ach of taskResult.newAchievements) {
-        output += `\n[x] ${ach.name}: ${ach.description}`;
+      output += `\n\n=== ${dict.messages.newAchievement} ===`;
+      for (const achId of taskResult.newAchievements) {
+        const achInfo = getAchievementInfo(achId, dict);
+        if (achInfo) {
+          output += `\n[x] ${achInfo.name}: ${achInfo.desc}`;
+        }
       }
     }
     
-    output += '\n';
-    output += '[Type "undo" to revert]';
+    if (taskResult.lootDropped) {
+      output += `\n\n${formatLootDrop(taskResult.lootDropped, dict)}`;
+    }
+    
+    output += '\n\n[Type "undo" to revert]';
     
     return wrapResult({ output });
   }
@@ -1191,7 +1209,8 @@ Tasks:
 
 Gamification:
   stats                 XP, level, streaks
-  achievements          Achievement list
+  achievements          Achievement list (infinite)
+  inventory             Loot collection
   map                   Dungeon map
   map --ai              AI-generated map
 
@@ -1242,17 +1261,17 @@ www.rlc.rocks
       
       return wrapResult({ output: `Created todo folder: ${safeName}/` });
     } else {
-      const schemaPath = saveSchemaFile(
-        currentPath,
+    const schemaPath = saveSchemaFile(
+      currentPath,
         pending.title,
         pending.content
-      );
-      const filename = path.basename(schemaPath);
-      
-      sessionState.pending = null;
-      sessionState.history = [];
-      
-      return wrapResult({ output: `Saved: ${filename}` });
+    );
+    const filename = path.basename(schemaPath);
+    
+    sessionState.pending = null;
+    sessionState.history = [];
+    
+    return wrapResult({ output: `Saved: ${filename}` });
     }
   }
   

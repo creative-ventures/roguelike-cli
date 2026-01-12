@@ -163,7 +163,8 @@ Or select "Custom" during `init` to enter your own rules.
 | Command | Description |
 |---------|-------------|
 | `stats` | XP, level, streaks |
-| `achievements` | Achievement list |
+| `achievements` | Achievement list (infinite) |
+| `inventory` | Loot collection |
 | `map` | Dungeon map |
 | `map --ai` | AI-generated map |
 
@@ -218,15 +219,49 @@ Tree shows deadlines:
 
 ## Achievements
 
-| Achievement | How to unlock |
-|-------------|---------------|
-| First Blood | Complete first task |
-| Getting Started | Complete 10 tasks |
-| Centurion | Complete 100 tasks |
-| Deep Diver | Task at depth 5+ |
-| Boss Slayer | Complete a boss |
-| Speedrunner | Same-day completion |
-| Streak Master | 7 day streak |
+Achievements are infinite and level-based. Keep progressing to unlock more!
+
+| Category | Milestones |
+|----------|------------|
+| Tasks | 1, 10, 50, 100, 500, 1000, 2500, 5000... |
+| Bosses | 1, 5, 10, 25, 50, 100... |
+| Streaks | 3, 7, 14, 30, 60, 90, 180, 365 days |
+| Depth | 3, 5, 7, 10, 15, 20 levels |
+| Special | Speedrunner, Night Owl, Early Bird |
+
+## Loot System
+
+Complete tasks to find loot! Higher level = rarer drops.
+
+| Rarity | Drop Rate | Symbol |
+|--------|-----------|--------|
+| Common | ~25% | [.] |
+| Uncommon | ~15% | [+] |
+| Rare | ~8% | [*] |
+| Epic | ~3% | [#] |
+| Legendary | ~1% | [!] |
+
+Bonus drops on:
+- Level up: 3x chance
+- Achievement: 2.5x chance
+- Boss completion: 2x chance
+
+```
+> inventory
+
+=== Inventory (5 items) ===
+
+Legendary:
+  [!] Excalibur
+
+Rare:
+  [*] Ring of Protection
+  [*] Boots of Speed
+
+Common:
+  [.] Health Potion
+  [.] Torch
+```
 
 ## Supported Models
 

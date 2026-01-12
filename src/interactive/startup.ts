@@ -18,7 +18,7 @@ const ASCII_ART = [
   '╚═════════════════════════╝',
   '',
   '  Tasks: done, undo, dl <date>, boss, block',
-  '  Stats: stats, achievements, map --ai',
+  '  Stats: stats, achievements, inventory, map',
   '',
   '  Rules: fantasy, space, starwars, cyberpunk',
   '  Config: init, config -R="<rules>"',

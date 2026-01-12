@@ -408,14 +408,23 @@ async function processCommand(input, currentPath, config, signal, rl) {
     }
     // Stats command
     if (command === 'stats') {
-        return wrapResult({ output: (0, profile_1.formatStats)() });
+        return wrapResult({ output: (0, profile_1.formatStats)(config.rulesPreset) });
+    }
+    // Inventory command
+    if (command === 'inventory' || command === 'inv' || command === 'loot') {
+        const { formatInventoryDisplay } = await Promise.resolve().then(() => __importStar(require('../storage/profile')));
+        return wrapResult({ output: formatInventoryDisplay(config.rulesPreset) });
     }
     // Achievements command
     if (command === 'achievements' || command === 'ach') {
-        return wrapResult({ output: (0, profile_1.formatAchievements)() });
+        return wrapResult({ output: (0, profile_1.formatAchievements)(config.rulesPreset) });
     }
     // Done command - mark current node as completed
     if (command === 'done') {
+        const { getDictionary } = await Promise.resolve().then(() => __importStar(require('../data/dictionaries')));
+        const { formatLootDrop } = await Promise.resolve().then(() => __importStar(require('../data/loot')));
+        const { getAchievementInfo } = await Promise.resolve().then(() => __importStar(require('../storage/profile')));
+        const dict = getDictionary(config.rulesPreset);
         const nodeConfig = (0, nodeConfig_1.readNodeConfig)(currentPath);
         if (!nodeConfig) {
             return wrapResult({ output: 'No task at current location. Navigate to a task first.' });
@@ -427,7 +436,7 @@ async function processCommand(input, currentPath, config, signal, rl) {
         const result = markDoneRecursive(currentPath, config.storagePath);
         // Update profile with XP and achievements
         const depth = getDepth(currentPath, config.storagePath);
-        const taskResult = (0, profile_1.completeTask)(result.xpGained, nodeConfig.isBoss || false, depth, nodeConfig.createdAt);
+        const taskResult = (0, profile_1.completeTask)(result.xpGained, nodeConfig.isBoss || false, depth, nodeConfig.createdAt, config.rulesPreset);
         // Save to undo history
         (0, profile_1.addToUndoHistory)({
             path: currentPath,
@@ -435,24 +444,29 @@ async function processCommand(input, currentPath, config, signal, rl) {
             wasBoss: nodeConfig.isBoss || false,
             timestamp: new Date().toISOString(),
         });
-        let output = `\n=== TASK COMPLETED ===\n`;
-        output += `\nTasks completed: ${result.tasksCompleted}`;
+        let output = `\n=== ${dict.messages.questCompleted} ===\n`;
+        output += `\nTasks: ${result.tasksCompleted}`;
         if (result.bossesDefeated > 0) {
-            output += `\nBosses defeated: ${result.bossesDefeated}`;
+            output += ` | Bosses: ${result.bossesDefeated}`;
         }
         output += `\n+${result.xpGained} XP`;
         if (taskResult.levelUp) {
-            output += `\n\n*** LEVEL UP! ***`;
-            output += `\nYou are now level ${taskResult.newLevel}!`;
+            output += `\n\n*** ${dict.messages.levelUp} ***`;
+            output += `\n${dict.stats.level} ${taskResult.newLevel}!`;
         }
         if (taskResult.newAchievements.length > 0) {
-            output += `\n\n=== NEW ACHIEVEMENTS ===`;
-            for (const ach of taskResult.newAchievements) {
-                output += `\n[x] ${ach.name}: ${ach.description}`;
+            output += `\n\n=== ${dict.messages.newAchievement} ===`;
+            for (const achId of taskResult.newAchievements) {
+                const achInfo = getAchievementInfo(achId, dict);
+                if (achInfo) {
+                    output += `\n[x] ${achInfo.name}: ${achInfo.desc}`;
+                }
             }
         }
-        output += '\n';
-        output += '[Type "undo" to revert]';
+        if (taskResult.lootDropped) {
+            output += `\n\n${formatLootDrop(taskResult.lootDropped, dict)}`;
+        }
+        output += '\n\n[Type "undo" to revert]';
         return wrapResult({ output });
     }
     // Undo command
@@ -1006,7 +1020,8 @@ Tasks:
 
 Gamification:
   stats                 XP, level, streaks
-  achievements          Achievement list
+  achievements          Achievement list (infinite)
+  inventory             Loot collection
   map                   Dungeon map
   map --ai              AI-generated map
 

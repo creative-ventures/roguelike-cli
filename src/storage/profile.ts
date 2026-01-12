@@ -1,13 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-
-export interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  unlockedAt?: string;
-}
+import { getDictionary, Dictionary } from '../data/dictionaries';
+import { LootItem, rollForLoot, formatLootDrop, formatInventory, calculateInventoryValue } from '../data/loot';
 
 export interface UndoEntry {
   path: string;
@@ -24,35 +19,35 @@ export interface Profile {
   currentStreak: number;
   longestStreak: number;
   lastCompletionDate?: string;
-  achievements: string[];
+  achievements: string[];        // Achievement IDs that were unlocked
+  inventory: LootItem[];         // Collected loot items
   undoHistory: UndoEntry[];
   stats: {
     completedByDay: Record<string, number>;
     createdAt: string;
+    deepestDepth: number;
+    speedruns: number;
+    nightOwlTasks: number;
+    earlyBirdTasks: number;
   };
 }
 
 const PROFILE_FILE = path.join(os.homedir(), '.rlc', 'profile.json');
 
-// Achievement definitions
-export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'first_blood', name: 'First Blood', description: 'Complete your first task' },
-  { id: 'ten_tasks', name: 'Getting Started', description: 'Complete 10 tasks' },
-  { id: 'fifty_tasks', name: 'Productive', description: 'Complete 50 tasks' },
-  { id: 'hundred_tasks', name: 'Centurion', description: 'Complete 100 tasks' },
-  { id: 'deep_nesting', name: 'Deep Diver', description: 'Complete a task at depth 5+' },
-  { id: 'boss_slayer', name: 'Boss Slayer', description: 'Complete a boss task' },
-  { id: 'five_bosses', name: 'Boss Hunter', description: 'Defeat 5 bosses' },
-  { id: 'speedrunner', name: 'Speedrunner', description: 'Complete a task on the same day it was created' },
-  { id: 'streak_3', name: 'On a Roll', description: '3 day completion streak' },
-  { id: 'streak_7', name: 'Streak Master', description: '7 day completion streak' },
-  { id: 'streak_30', name: 'Unstoppable', description: '30 day completion streak' },
-  { id: 'level_5', name: 'Adventurer', description: 'Reach level 5' },
-  { id: 'level_10', name: 'Veteran', description: 'Reach level 10' },
-  { id: 'level_25', name: 'Legend', description: 'Reach level 25' },
-  { id: 'xp_1000', name: 'XP Collector', description: 'Earn 1000 XP' },
-  { id: 'xp_10000', name: 'XP Hoarder', description: 'Earn 10000 XP' },
-];
+// Achievement thresholds (infinite, level-based)
+export const ACHIEVEMENT_THRESHOLDS = {
+  tasks: [1, 10, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+  bosses: [1, 5, 10, 25, 50, 100, 250, 500],
+  streaks: [3, 7, 14, 30, 60, 90, 180, 365],
+  depths: [3, 5, 7, 10, 15, 20],
+  levels: [5, 10, 25, 50, 100, 150, 200],
+  xp: [1000, 5000, 10000, 50000, 100000, 500000, 1000000],
+};
+
+// Map threshold to achievement ID
+function getAchievementId(type: string, threshold: number): string {
+  return `${type}_${threshold}`;
+}
 
 // XP required for each level (cumulative)
 export function xpForLevel(level: number): number {
@@ -95,6 +90,10 @@ export function readProfile(): Profile {
     return {
       ...createDefaultProfile(),
       ...profile,
+      stats: {
+        ...createDefaultProfile().stats,
+        ...profile.stats,
+      },
     };
   } catch {
     return createDefaultProfile();
@@ -122,40 +121,40 @@ function createDefaultProfile(): Profile {
     currentStreak: 0,
     longestStreak: 0,
     achievements: [],
+    inventory: [],
     undoHistory: [],
     stats: {
       completedByDay: {},
       createdAt: new Date().toISOString(),
+      deepestDepth: 0,
+      speedruns: 0,
+      nightOwlTasks: 0,
+      earlyBirdTasks: 0,
     },
   };
 }
 
-export function addXP(amount: number): { newXP: number; levelUp: boolean; newLevel: number } {
-  const profile = readProfile();
-  const oldLevel = profile.level;
-  
-  profile.totalXP += amount;
-  profile.level = levelFromXP(profile.totalXP);
-  
-  saveProfile(profile);
-  
-  return {
-    newXP: profile.totalXP,
-    levelUp: profile.level > oldLevel,
-    newLevel: profile.level,
-  };
-}
-
-export function completeTask(xp: number, isBoss: boolean, depth: number, createdAt: string): {
+export interface CompletionResult {
   xpGained: number;
   levelUp: boolean;
+  oldLevel: number;
   newLevel: number;
-  newAchievements: Achievement[];
-} {
+  newAchievements: string[];   // Achievement IDs
+  lootDropped?: LootItem;
+}
+
+export function completeTask(
+  xp: number, 
+  isBoss: boolean, 
+  depth: number, 
+  createdAt: string,
+  rulesPreset?: string
+): CompletionResult {
   const profile = readProfile();
   const oldLevel = profile.level;
   const today = new Date().toISOString().split('T')[0];
   const createdDate = createdAt.split('T')[0];
+  const hour = new Date().getHours();
   
   // Add XP
   profile.totalXP += xp;
@@ -164,6 +163,18 @@ export function completeTask(xp: number, isBoss: boolean, depth: number, created
   if (isBoss) {
     profile.bossesDefeated += 1;
   }
+  
+  // Track special completions
+  if (createdDate === today) {
+    profile.stats.speedruns = (profile.stats.speedruns || 0) + 1;
+  }
+  if (hour >= 0 && hour < 6) {
+    profile.stats.earlyBirdTasks = (profile.stats.earlyBirdTasks || 0) + 1;
+  }
+  if (hour >= 0 && hour < 5) {
+    profile.stats.nightOwlTasks = (profile.stats.nightOwlTasks || 0) + 1;
+  }
+  profile.stats.deepestDepth = Math.max(profile.stats.deepestDepth || 0, depth);
   
   // Update streak
   if (profile.lastCompletionDate) {
@@ -176,7 +187,6 @@ export function completeTask(xp: number, isBoss: boolean, depth: number, created
     } else if (diffDays > 1) {
       profile.currentStreak = 1;
     }
-    // Same day - streak continues but doesn't increment
   } else {
     profile.currentStreak = 1;
   }
@@ -189,84 +199,185 @@ export function completeTask(xp: number, isBoss: boolean, depth: number, created
   
   // Update level
   profile.level = levelFromXP(profile.totalXP);
+  const levelUp = profile.level > oldLevel;
   
   // Check for new achievements
-  const newAchievements: Achievement[] = [];
+  const newAchievements: string[] = [];
   
   const checkAchievement = (id: string) => {
     if (!profile.achievements.includes(id)) {
       profile.achievements.push(id);
-      const achievement = ACHIEVEMENTS.find(a => a.id === id);
-      if (achievement) newAchievements.push(achievement);
+      newAchievements.push(id);
     }
   };
   
-  // Task count achievements
-  if (profile.tasksCompleted >= 1) checkAchievement('first_blood');
-  if (profile.tasksCompleted >= 10) checkAchievement('ten_tasks');
-  if (profile.tasksCompleted >= 50) checkAchievement('fifty_tasks');
-  if (profile.tasksCompleted >= 100) checkAchievement('hundred_tasks');
+  // Task count achievements (infinite)
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.tasks) {
+    if (profile.tasksCompleted >= threshold) {
+      checkAchievement(getAchievementId('tasks', threshold));
+    }
+  }
   
-  // Boss achievements
-  if (isBoss) checkAchievement('boss_slayer');
-  if (profile.bossesDefeated >= 5) checkAchievement('five_bosses');
+  // Boss achievements (infinite)
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.bosses) {
+    if (profile.bossesDefeated >= threshold) {
+      checkAchievement(getAchievementId('bosses', threshold));
+    }
+  }
   
-  // Depth achievement
-  if (depth >= 5) checkAchievement('deep_nesting');
+  // Depth achievements (infinite)
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.depths) {
+    if (profile.stats.deepestDepth >= threshold) {
+      checkAchievement(getAchievementId('depth', threshold));
+    }
+  }
   
-  // Speedrunner achievement
-  if (createdDate === today) checkAchievement('speedrunner');
+  // Streak achievements (infinite)
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.streaks) {
+    if (profile.currentStreak >= threshold) {
+      checkAchievement(getAchievementId('streak', threshold));
+    }
+  }
   
-  // Streak achievements
-  if (profile.currentStreak >= 3) checkAchievement('streak_3');
-  if (profile.currentStreak >= 7) checkAchievement('streak_7');
-  if (profile.currentStreak >= 30) checkAchievement('streak_30');
+  // Level achievements (infinite)
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.levels) {
+    if (profile.level >= threshold) {
+      checkAchievement(getAchievementId('level', threshold));
+    }
+  }
   
-  // Level achievements
-  if (profile.level >= 5) checkAchievement('level_5');
-  if (profile.level >= 10) checkAchievement('level_10');
-  if (profile.level >= 25) checkAchievement('level_25');
+  // XP achievements (infinite)
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.xp) {
+    if (profile.totalXP >= threshold) {
+      checkAchievement(getAchievementId('xp', threshold));
+    }
+  }
   
-  // XP achievements
-  if (profile.totalXP >= 1000) checkAchievement('xp_1000');
-  if (profile.totalXP >= 10000) checkAchievement('xp_10000');
+  // Special achievements
+  if (createdDate === today) {
+    checkAchievement('speedrun');
+  }
+  if (hour >= 0 && hour < 5) {
+    checkAchievement('nightowl');
+  }
+  if (hour >= 5 && hour < 7) {
+    checkAchievement('earlybird');
+  }
+  
+  // Roll for loot
+  let lootDropped: LootItem | undefined;
+  
+  // Roll from task completion
+  const taskLoot = rollForLoot(profile.level, isBoss ? 'boss' : 'task', rulesPreset);
+  if (taskLoot.dropped && taskLoot.item) {
+    lootDropped = taskLoot.item;
+    profile.inventory = profile.inventory || [];
+    profile.inventory.push(taskLoot.item);
+  }
+  
+  // Additional roll on level up
+  if (levelUp) {
+    const levelLoot = rollForLoot(profile.level, 'levelup', rulesPreset);
+    if (levelLoot.dropped && levelLoot.item) {
+      if (!lootDropped) {
+        lootDropped = levelLoot.item;
+      }
+      profile.inventory.push(levelLoot.item);
+    }
+  }
+  
+  // Additional roll on new achievements
+  if (newAchievements.length > 0) {
+    const achievementLoot = rollForLoot(profile.level, 'achievement', rulesPreset);
+    if (achievementLoot.dropped && achievementLoot.item) {
+      if (!lootDropped) {
+        lootDropped = achievementLoot.item;
+      }
+      profile.inventory.push(achievementLoot.item);
+    }
+  }
   
   saveProfile(profile);
   
   return {
     xpGained: xp,
-    levelUp: profile.level > oldLevel,
+    levelUp,
+    oldLevel,
     newLevel: profile.level,
     newAchievements,
+    lootDropped,
   };
 }
 
-export function formatStats(): string {
+// Get achievement display info from dictionary
+export function getAchievementInfo(achievementId: string, dict: Dictionary): { name: string; desc: string } | null {
+  // Parse achievement ID
+  const parts = achievementId.split('_');
+  const type = parts[0];
+  const threshold = parseInt(parts[1]);
+  
+  // Map to dictionary keys
+  const keyMap: Record<string, Record<number, string>> = {
+    tasks: { 1: 'firstTask', 10: 'tasks10', 50: 'tasks50', 100: 'tasks100', 500: 'tasks500', 1000: 'tasks1000' },
+    bosses: { 1: 'boss1', 5: 'boss5', 10: 'boss10', 25: 'boss25' },
+    streak: { 3: 'streak3', 7: 'streak7', 14: 'streak14', 30: 'streak30' },
+    depth: { 3: 'depth3', 5: 'depth5', 10: 'depth10' },
+  };
+  
+  // Special achievements
+  if (achievementId === 'speedrun') {
+    return dict.achievements.speedrun;
+  }
+  if (achievementId === 'nightowl') {
+    return dict.achievements.nightOwl;
+  }
+  if (achievementId === 'earlybird') {
+    return dict.achievements.earlyBird;
+  }
+  
+  // Get from map
+  if (keyMap[type] && keyMap[type][threshold]) {
+    const key = keyMap[type][threshold] as keyof Dictionary['achievements'];
+    return dict.achievements[key];
+  }
+  
+  // Generate for achievements beyond dictionary
+  return {
+    name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${threshold}`,
+    desc: `Reach ${threshold} ${type}`,
+  };
+}
+
+export function formatStats(rulesPreset?: string): string {
   const profile = readProfile();
+  const dict = getDictionary(rulesPreset);
   const nextLevel = xpToNextLevel(profile.totalXP);
   
   const lines: string[] = [
     '',
     '=== PLAYER STATS ===',
     '',
-    `Level: ${profile.level}`,
-    `XP: ${profile.totalXP} (${nextLevel.current}/${nextLevel.required} to next level)`,
+    `${dict.stats.level}: ${profile.level}`,
+    `${dict.stats.xp}: ${profile.totalXP} (${nextLevel.current}/${nextLevel.required} to next)`,
     `Progress: [${'#'.repeat(Math.floor(nextLevel.progress / 5))}${'.'.repeat(20 - Math.floor(nextLevel.progress / 5))}] ${nextLevel.progress}%`,
     '',
-    `Tasks Completed: ${profile.tasksCompleted}`,
-    `Bosses Defeated: ${profile.bossesDefeated}`,
-    `Current Streak: ${profile.currentStreak} days`,
-    `Longest Streak: ${profile.longestStreak} days`,
+    `${dict.stats.tasksCompleted}: ${profile.tasksCompleted}`,
+    `${dict.stats.bossesDefeated}: ${profile.bossesDefeated}`,
+    `${dict.stats.currentStreak}: ${profile.currentStreak} days`,
+    `${dict.stats.longestStreak}: ${profile.longestStreak} days`,
     '',
-    `Achievements: ${profile.achievements.length}/${ACHIEVEMENTS.length}`,
+    `Achievements: ${profile.achievements.length}`,
+    `${dict.stats.inventory}: ${(profile.inventory || []).length} items`,
+    `Inventory Value: ${calculateInventoryValue(profile.inventory || [])}`,
     '',
   ];
   
   return lines.join('\n');
 }
 
-export function formatAchievements(): string {
+export function formatAchievements(rulesPreset?: string): string {
   const profile = readProfile();
+  const dict = getDictionary(rulesPreset);
   
   const lines: string[] = [
     '',
@@ -274,24 +385,76 @@ export function formatAchievements(): string {
     '',
   ];
   
-  for (const achievement of ACHIEVEMENTS) {
-    const unlocked = profile.achievements.includes(achievement.id);
-    const status = unlocked ? '[x]' : '[ ]';
-    lines.push(`${status} ${achievement.name}`);
-    lines.push(`    ${achievement.description}`);
+  // Show unlocked achievements
+  if (profile.achievements.length === 0) {
+    lines.push('No achievements yet. Complete tasks to unlock!');
+  } else {
+    lines.push('Unlocked:');
+    for (const id of profile.achievements) {
+      const info = getAchievementInfo(id, dict);
+      if (info) {
+        lines.push(`[x] ${info.name}`);
+        lines.push(`    ${info.desc}`);
+      }
+    }
+  }
+  
+  // Show next achievements to unlock
+  lines.push('');
+  lines.push('Next to unlock:');
+  
+  // Find next task achievement
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.tasks) {
+    const id = getAchievementId('tasks', threshold);
+    if (!profile.achievements.includes(id)) {
+      const info = getAchievementInfo(id, dict);
+      if (info) {
+        lines.push(`[ ] ${info.name} (${profile.tasksCompleted}/${threshold})`);
+      }
+      break;
+    }
+  }
+  
+  // Find next boss achievement
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.bosses) {
+    const id = getAchievementId('bosses', threshold);
+    if (!profile.achievements.includes(id)) {
+      const info = getAchievementInfo(id, dict);
+      if (info) {
+        lines.push(`[ ] ${info.name} (${profile.bossesDefeated}/${threshold})`);
+      }
+      break;
+    }
+  }
+  
+  // Find next streak achievement
+  for (const threshold of ACHIEVEMENT_THRESHOLDS.streaks) {
+    const id = getAchievementId('streak', threshold);
+    if (!profile.achievements.includes(id)) {
+      const info = getAchievementInfo(id, dict);
+      if (info) {
+        lines.push(`[ ] ${info.name} (${profile.currentStreak}/${threshold})`);
+      }
+      break;
+    }
   }
   
   lines.push('');
-  lines.push(`Unlocked: ${profile.achievements.length}/${ACHIEVEMENTS.length}`);
+  lines.push(`Total unlocked: ${profile.achievements.length}`);
   lines.push('');
   
   return lines.join('\n');
 }
 
+export function formatInventoryDisplay(rulesPreset?: string): string {
+  const profile = readProfile();
+  const dict = getDictionary(rulesPreset);
+  return formatInventory(profile.inventory || [], dict);
+}
+
 export function addToUndoHistory(entry: UndoEntry): void {
   const profile = readProfile();
   
-  // Keep only last 10 undo entries
   profile.undoHistory = profile.undoHistory || [];
   profile.undoHistory.unshift(entry);
   if (profile.undoHistory.length > 10) {
@@ -318,7 +481,6 @@ export function performUndo(): { success: boolean; entry: UndoEntry | null; mess
   
   const entry = profile.undoHistory.shift()!;
   
-  // Subtract XP
   profile.totalXP = Math.max(0, profile.totalXP - entry.xpLost);
   profile.tasksCompleted = Math.max(0, profile.tasksCompleted - 1);
   
@@ -326,10 +488,8 @@ export function performUndo(): { success: boolean; entry: UndoEntry | null; mess
     profile.bossesDefeated = Math.max(0, profile.bossesDefeated - 1);
   }
   
-  // Update level
   profile.level = levelFromXP(profile.totalXP);
   
-  // Update daily stats
   const today = new Date().toISOString().split('T')[0];
   if (profile.stats.completedByDay[today]) {
     profile.stats.completedByDay[today] = Math.max(0, profile.stats.completedByDay[today] - 1);
@@ -343,4 +503,3 @@ export function performUndo(): { success: boolean; entry: UndoEntry | null; mess
     message: `Undo: -${entry.xpLost} XP` 
   };
 }
-

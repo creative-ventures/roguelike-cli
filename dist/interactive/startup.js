@@ -22,7 +22,7 @@ const ASCII_ART = [
     '  Tasks: done, undo, dl <date>, boss, block',
     '  Stats: stats, achievements, inventory, map',
     '',
-    '  Rules: fantasy, starwars, cyberpunk, darksouls...',
+    '  Rules: fantasy, starwars, cyberpunk, crusader...',
     '  Config: init, config -R="<rules>"',
     '',
     '  TAB autocomplete, | pbcopy to copy',

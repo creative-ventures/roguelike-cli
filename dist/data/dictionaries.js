@@ -2,7 +2,7 @@
 // Base dictionaries for different rule presets
 // Keys are used everywhere, values are localized based on rules
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DICTIONARIES = exports.DARKSOULS_DICTIONARY = exports.NINJA_DICTIONARY = exports.WARHAMMER_DICTIONARY = exports.WESTERN_DICTIONARY = exports.PIRATE_DICTIONARY = exports.CYBERPUNK_DICTIONARY = exports.STARWARS_DICTIONARY = exports.SPACE_DICTIONARY = exports.FANTASY_DICTIONARY = exports.DEFAULT_DICTIONARY = void 0;
+exports.DICTIONARIES = exports.DARKSOULS_DICTIONARY = exports.CRUSADER_DICTIONARY = exports.NINJA_DICTIONARY = exports.WARHAMMER_DICTIONARY = exports.WESTERN_DICTIONARY = exports.PIRATE_DICTIONARY = exports.CYBERPUNK_DICTIONARY = exports.STARWARS_DICTIONARY = exports.SPACE_DICTIONARY = exports.FANTASY_DICTIONARY = exports.DEFAULT_DICTIONARY = void 0;
 exports.getDictionary = getDictionary;
 // Default dictionary (no theme)
 exports.DEFAULT_DICTIONARY = {
@@ -553,6 +553,67 @@ exports.NINJA_DICTIONARY = {
         inventory: 'Inventory',
     },
 };
+// Stronghold Crusader dictionary
+exports.CRUSADER_DICTIONARY = {
+    messages: {
+        questCompleted: 'THE CASTLE STANDS!',
+        levelUp: 'YOUR LORDSHIP GROWS!',
+        newAchievement: 'HONOR TO YOUR HOUSE',
+        lootDropped: 'SPOILS OF WAR',
+        bossDefeated: 'FORTRESS CONQUERED',
+        streakBonus: 'CRUSADE MOMENTUM',
+        taskBlocked: 'The siege continues',
+        taskUnblocked: 'The walls have fallen',
+        deadlineSet: 'The crusade begins',
+        deadlineOverdue: 'THE CASTLE HAS FALLEN',
+        welcomeBack: 'Welcome back, my Lord',
+    },
+    achievements: {
+        firstTask: { name: 'Squire', desc: 'Begin your crusade' },
+        tasks10: { name: 'Knight', desc: 'Complete 10 campaigns' },
+        tasks50: { name: 'Baron', desc: 'Complete 50 campaigns' },
+        tasks100: { name: 'Earl', desc: 'Complete 100 campaigns' },
+        tasks500: { name: 'Duke', desc: 'Complete 500 campaigns' },
+        tasks1000: { name: 'King of Jerusalem', desc: 'Complete 1000 campaigns' },
+        boss1: { name: 'Castle Breaker', desc: 'Conquer your first fortress' },
+        boss5: { name: 'Siege Master', desc: 'Conquer 5 fortresses' },
+        boss10: { name: 'Crusader Lord', desc: 'Conquer 10 fortresses' },
+        boss25: { name: 'Lionheart', desc: 'Conquer 25 fortresses' },
+        streak3: { name: 'March Onward', desc: '3 day crusade streak' },
+        streak7: { name: 'Relentless Siege', desc: '7 day crusade streak' },
+        streak14: { name: 'Holy Warrior', desc: '14 day crusade streak' },
+        streak30: { name: 'Eternal Crusader', desc: '30 day crusade streak' },
+        depth3: { name: 'Tunnel Digger', desc: 'Descend to level 3' },
+        depth5: { name: 'Underminer', desc: 'Descend to level 5' },
+        depth10: { name: 'Sappers Master', desc: 'Descend to level 10' },
+        speedrun: { name: 'Swift Assault', desc: 'Same-day conquest' },
+        nightOwl: { name: 'Night Raid', desc: 'Task after midnight' },
+        earlyBird: { name: 'Dawn Siege', desc: 'Task before dawn' },
+    },
+    loot: {
+        common: ['Bread Ration', 'Crossbow Bolt', 'Leather Armor', 'Wooden Shield', 'Torch'],
+        uncommon: ['Crossbow', 'Mace', 'Chainmail', 'Siege Ladder', 'Oil Pot'],
+        rare: ['Longbow', 'Knight Armor', 'War Horse', 'Battering Ram', 'Greek Fire'],
+        epic: ['Trebuchet', 'Templar Armor', 'Lionheart Sword', 'Siege Tower', 'Royal Banner'],
+        legendary: ['Crown of Jerusalem', 'Sword of Saladin', 'Holy Grail', 'Ark of the Covenant', 'Richard\'s Legacy'],
+    },
+    rarities: {
+        common: 'Common',
+        uncommon: 'Forged',
+        rare: 'Blessed',
+        epic: 'Sacred',
+        legendary: 'Holy Relic',
+    },
+    stats: {
+        level: 'Noble Rank',
+        xp: 'Gold',
+        tasksCompleted: 'Campaigns Won',
+        bossesDefeated: 'Fortresses Conquered',
+        currentStreak: 'Crusade Streak',
+        longestStreak: 'Longest Campaign',
+        inventory: 'Armory',
+    },
+};
 // Dark Souls dictionary
 exports.DARKSOULS_DICTIONARY = {
     messages: {
@@ -625,6 +686,7 @@ exports.DICTIONARIES = {
     western: exports.WESTERN_DICTIONARY,
     warhammer: exports.WARHAMMER_DICTIONARY,
     ninja: exports.NINJA_DICTIONARY,
+    crusader: exports.CRUSADER_DICTIONARY,
     darksouls: exports.DARKSOULS_DICTIONARY,
 };
 // Get dictionary based on rules preset

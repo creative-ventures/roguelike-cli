@@ -89,6 +89,10 @@ exports.RULES_PRESETS = {
         name: 'Ninja/Samurai',
         rules: 'Use Japanese ninja/samurai language. Tasks are "missions". Completing is "vanquishing enemies". Milestones are "contracts". Use "shinobi", "sensei", "shadow", "honor", "blade". Move like the wind, strike like lightning.',
     },
+    crusader: {
+        name: 'Stronghold Crusader',
+        rules: 'Use medieval crusader language. Tasks are "campaigns". Completing is "victory for the realm". Milestones are "sieges". Use "my Lord", "castle", "fortress", "crusade", "knights", "archers". Build your castle and conquer the Holy Land!',
+    },
     darksouls: {
         name: 'Dark Souls',
         rules: 'Use Dark Souls language. Tasks are "challenges". Completing is "victory achieved". Failing is "YOU DIED". Milestones are "boss fights". Use "Ashen One", "bonfire", "souls", "ember", "hollow". Praise the Sun!',

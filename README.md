@@ -279,13 +279,9 @@ gemini-2.0-flash
 grok-beta
 ```
 
-## Website
+## Author
 
-**https://www.rlc.rocks**
-
-**Open Source:** [GitHub](https://github.com/creative-ventures/roguelike-cli) | [npm](https://www.npmjs.com/package/roguelike-cli)
-
-Designed by [Creative Ventures](https://www.cv.rocks)
+[Creative Ventures](https://www.cv.rocks/)
 
 ## License
 
